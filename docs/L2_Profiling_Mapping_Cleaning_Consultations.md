@@ -135,6 +135,34 @@ Le script se termine par 3 contrôles qui doivent renvoyer 0 / un écart justifi
 
 ---
 
-## 4. POINT OUVERT
+## 4. VALIDATION DU PIPELINE (test sur données réelles)
+
+Les règles de nettoyage ont été **exécutées et vérifiées** sur les données réelles (dump `DATA2023` restauré). Pour tester les règles défensives (la source étant trop propre), **6 cas sales ont été injectés** dans la couche Bronze, puis le pipeline a été lancé.
+
+| Règle | Cas testé | Résultat attendu | Vérifié |
+|-------|-----------|------------------|:-------:|
+| R1 déduplication | doublon d'une consultation existante | ligne dédupliquée (−1) | ✅ |
+| R2 clés obligatoires | `id_patient` NULL + `date` NULL | 2 lignes rejetées | ✅ |
+| R3 `code_diag` vide | `code_diag = ''` | valeur → `'UNKNOWN'` | ✅ |
+| R4 date hors plage | date `2099-01-01` | ligne rejetée | ✅ |
+| R5 horaire incohérent | `fin < début` (10 réelles + 1 injectée) | `duree_minutes` = NULL (11), 0 négative | ✅ |
+| R6 sexe `male`/`female` | 100 000 patients | → `M`/`F`, 0 non mappé | ✅ |
+
+**Réconciliation des volumes** (Bronze → Silver) :
+
+| Étape | Lignes |
+|-------|-------:|
+| Bronze (avec 6 cas injectés) | 1 027 163 |
+| Après R1 (déduplication) | 1 027 162 |
+| Après R2 (clés obligatoires) | 1 027 160 |
+| Silver final (après R4 plage de dates) | 1 027 159 |
+
+**Contrôles qualité finaux** : doublons résiduels = 0, durées négatives = 0.
+
+> Sur les données réelles seules (sans injection), le pipeline ne rejette aucune ligne et corrige uniquement les 10 horaires incohérents → cohérent avec un profiling de très bonne qualité.
+
+---
+
+## 5. POINT OUVERT
 
 **Besoin B1 (établissement)** : la table source `Consultation` ne porte aucun identifiant d'établissement. La FK `etablissement_key` reste en attente de l'arbitrage d'équipe (cf. `docs/03-fait-consultation.md`). Ce point ne concerne pas le cleaning lui-même mais le mapping de cette FK.
