@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHU · Satisfaction</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<style>
+:root{
+  --canvas:#f3f4f7; --card:#ffffff; --ink:#252423; --muted:#605e5c;
+  --line:#edeef1; --accent:#118dff; --accent-d:#0b5cad;
+  --radius:10px; --gap:16px;
+  --shadow-1:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.10);
+  --shadow-2:0 6px 16px -4px rgba(16,24,40,.14),0 3px 6px -3px rgba(16,24,40,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--canvas);color:var(--ink);
+  font-family:'Segoe UI',system-ui,-apple-system,Inter,Arial,sans-serif;font-size:13px;line-height:1.45}
+.app{max-width:1340px;margin:0 auto;padding:22px 24px 40px}
+
+/* En-tête */
+.topbar{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.topbar .mark{width:40px;height:40px;border-radius:11px;flex:none;
+  background:linear-gradient(135deg,#118dff,#0b5cad);display:grid;place-items:center;
+  color:#fff;font-size:19px;font-weight:700;box-shadow:var(--shadow-1)}
+.topbar h1{font-size:19px;font-weight:650;letter-spacing:.2px}
+.topbar .sub{color:var(--muted);font-size:12px;margin-top:1px}
+.topbar .src{margin-left:auto;color:#9aa1ab;font-size:11px;text-align:right;max-width:300px}
+
+/* Navigation entre dashboards : onglets soulignés (pas de boîtes) */
+.nav{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+.nav a{text-decoration:none;font-size:13px;color:var(--muted);padding:9px 16px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .12s,border-color .12s}
+.nav a:hover{color:var(--ink)}
+.nav a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+
+/* Bandeau besoins : pastilles discrètes en ligne, sans cartes */
+.besoins{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:var(--muted)}
+.bes{display:flex;align-items:center;gap:7px}
+.bes .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.bes b{color:var(--ink);font-weight:650}
+.bes.ok .dot{background:#13a10e}.bes.ko .dot{background:#d13438}.bes.ctx .dot{background:#9aa1ab}
+
+/* Filter pane sticky : slicers + chips de filtres actifs */
+.filterbar{position:sticky;top:10px;z-index:20;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow-1);padding:12px 14px;margin-bottom:16px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.fb-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:#9aa1ab;font-weight:700}
+.slicer{display:flex;align-items:center;gap:8px}
+.slicer select{border:1px solid #e3e6ea;border-radius:7px;padding:7px 11px;font-size:13px;
+  color:var(--ink);background:#fff;outline:none;cursor:pointer;font-family:inherit}
+.slicer select:hover{border-color:var(--accent)}
+.tiles{display:flex;gap:4px}
+.tiles button{border:1px solid #e3e6ea;background:#fff;color:var(--muted);border-radius:7px;
+  padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit;transition:all .12s}
+.tiles button:hover{border-color:var(--accent);color:var(--ink)}
+.tiles button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#eaf4ff;color:var(--accent-d);
+  border:1px solid #cfe6ff;border-radius:14px;padding:4px 6px 4px 11px;font-size:12px;font-weight:600}
+.chip .x{cursor:pointer;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;
+  background:#cfe6ff;color:var(--accent-d);font-size:12px;line-height:1}
+.chip .x:hover{background:var(--accent);color:#fff}
+.chip .k{font-weight:400;color:#5b7aa0;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
+.clearall{border:none;background:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline}
+.clearall:hover{color:#d13438}
+.chips-empty{margin-left:auto;color:#b7bcc4;font-size:12px;font-style:italic}
+
+/* Bandeau narratif */
+.insight{background:linear-gradient(90deg,#eaf4ff,#fff 60%);border-radius:var(--radius);
+  box-shadow:var(--shadow-1);padding:13px 18px;margin-bottom:16px;font-size:14px;color:#374151}
+.insight b{color:var(--ink)}
+
+/* KPI : cartes en élévation, sans bordure */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--gap);margin-bottom:var(--gap)}
+.kpi{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-1);
+  padding:15px 17px;position:relative;overflow:hidden;transition:box-shadow .15s,transform .15s}
+.kpi:hover{box-shadow:var(--shadow-2);transform:translateY(-2px)}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c,var(--accent))}
+.kpi .lab{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:650}
+.kpi .val{font-size:25px;font-weight:750;margin-top:7px;color:var(--ink);line-height:1.1}
+.kpi .note{font-size:11px;color:#9aa1ab;margin-top:4px}
+
+/* Layout des visuels : zones nommées -> tailles variables (visuel focal large) */
+.report{display:grid;gap:var(--gap);grid-template-columns:repeat(6,1fr);
+  grid-auto-rows:minmax(120px,auto)}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-1);
+  padding:14px 16px;transition:box-shadow .15s;display:flex;flex-direction:column}
+.card:hover{box-shadow:var(--shadow-2)}
+.card h3{font-size:13.5px;font-weight:650;color:var(--ink);display:flex;align-items:center;gap:8px}
+.card .tag{color:#9aa1ab;font-size:11px;margin:3px 0 8px}
+.card .chart{width:100%;flex:1;min-height:240px}
+.bcode{font-weight:700;color:#fff;background:var(--accent);border-radius:5px;
+  font-size:10.5px;padding:2px 7px;letter-spacing:.3px}
+.hint{margin-left:auto;font-size:10.5px;color:#b7bcc4;font-weight:400}
+/* spans de grille */
+.col2{grid-column:span 2}.col3{grid-column:span 3}.col4{grid-column:span 4}.col6{grid-column:span 6}
+.tall .chart{min-height:330px}
+
+.foot{color:#9aa1ab;font-size:11px;margin-top:18px;text-align:center;line-height:1.6}
+@media(max-width:1040px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .report{grid-template-columns:repeat(2,1fr)}
+  .col2,.col3,.col4,.col6{grid-column:span 2}
+  .filterbar{position:static}
+}
+</style></head><body>
+<div class="app">
+<div class="topbar"><div class="mark">+</div>
+  <div><h1>Cloud Healthcare Unit — Satisfaction</h1><div class="sub">Tableau de bord décisionnel</div></div>
+  <div class="src">e-Satis 48h MCO 2020 (open data) · agrégats</div></div>
+<div class="nav"><a href="consultations_dashboard.html" class="">Consultations</a><a href="hospitalisation_dashboard.html" class="">Hospitalisation</a><a href="deces_dashboard.html" class="">Décès</a><a href="satisfaction_dashboard.html" class="on">Satisfaction</a></div>
+<div class="besoins"><div class="bes ok"><span class="dot"></span><b>B8</b> Taux global de satisfaction par région — 2020</div><div class="bes ctx"><span class="dot"></span><b>Ctx</b> Détail par dimension de l'expérience patient</div></div>
+<div class="filterbar"><div class="slicer"><span class="fb-label">Campagne</span><div class="tiles" id="sl_campagne"><button data-v="all" aria-pressed="true">Tous</button><button data-v="2020" aria-pressed="false">2020 · e-Satis 48h MCO</button></div></div><div class="slicer"><span class="fb-label">Trier les régions</span><div class="tiles" id="sl_tri"><button data-v="all" aria-pressed="true">Tous</button><button data-v="desc" aria-pressed="false">Meilleures</button><button data-v="asc" aria-pressed="false">À améliorer</button></div></div><div class="chips" id="chips"></div></div>
+<div class="insight" id="insight">—</div>
+<div class="kpis"><div class="kpi" id="k_nat" style="--c:#118dff"><div class="lab">Satisfaction nationale</div><div class="val">–</div><div class="note">moyenne /10</div></div><div class="kpi" id="k_best" style="--c:#13a10e"><div class="lab">Région n°1</div><div class="val">–</div><div class="note"></div></div><div class="kpi" id="k_worst" style="--c:#e8590c"><div class="lab">Région à améliorer</div><div class="val">–</div><div class="note"></div></div><div class="kpi" id="k_nreg" style="--c:#7048e8"><div class="lab">Régions évaluées</div><div class="val">–</div><div class="note">campagne 2020</div></div><div class="kpi" id="k_diff" style="--c:#e64980"><div class="lab">Établissements diffusés</div><div class="val">–</div><div class="note"></div></div></div>
+<div class="report"><div class="card col6 tall"><h3><span class="bcode">B8</span>Satisfaction par région (2020)</h3><div class="tag">Score global ajusté moyen, sur 10 · repère = moyenne nationale</div><div class="chart" id="c_region"></div></div><div class="card col3 tall"><h3><span class="bcode">Ctx</span>Satisfaction par dimension</h3><div class="tag">Score moyen national par axe de l'expérience patient</div><div class="chart" id="c_sub"></div></div><div class="card col3 tall"><h3><span class="bcode">Ctx</span>Établissements évalués par région</h3><div class="tag">Nombre d'établissements diffusés (score publiable)</div><div class="chart" id="c_nb"></div></div></div>
+<div class="foot">Score global ajusté converti sur 10. Établissements sous le seuil de diffusion exclus (cf. profiling P3). Prototype — sera reconstruit dans Power BI / Tableau sur Hive.</div>
+</div>
+<script>
+
+echarts.registerTheme('chu', {
+  color:['#118dff','#13a10e','#e8590c','#7048e8','#e64980','#15aabf','#fab005','#4263eb','#2f9e44','#d6336c','#1098ad','#5c940d'],
+  textStyle:{fontFamily:"'Segoe UI',Inter,system-ui,sans-serif",color:'#605e5c'},
+  backgroundColor:'transparent',
+  title:{textStyle:{color:'#252423'}}
+});
+const PAL=['#118dff','#13a10e','#e8590c','#7048e8','#e64980','#15aabf','#fab005','#4263eb','#2f9e44','#d6336c','#1098ad','#5c940d'];
+const MONTHS=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+const AX={axisLine:{lineStyle:{color:'#dfe2e6'}},axisLabel:{color:'#605e5c'},axisTick:{show:false}};
+const SPL={splitLine:{lineStyle:{color:'#f0f1f4'}}};
+const GRID={left:'3%',right:'5%',bottom:'3%',top:'12%',containLabel:true};
+const fmt=n=>Math.round(n).toLocaleString('fr-FR');
+const TT={trigger:'axis',axisPointer:{type:'shadow'},backgroundColor:'#fff',borderWidth:0,
+  textStyle:{color:'#252423'},extraCssText:'box-shadow:0 4px 16px rgba(16,24,40,.16);border-radius:8px;padding:8px 12px;'};
+const TTI=Object.assign({},TT,{trigger:'item'});
+
+window.__SATIS__ = {"regions": [["Bretagne", 7.6, 40], ["Nouvelle Aquitaine", 7.52, 81], ["Pays de la Loire", 7.52, 39], ["Hauts de France", 7.46, 74], ["Bourgogne-Franche-Comté", 7.46, 34], ["Occitanie", 7.44, 78], ["Auvergne-Rhône-Alpes", 7.44, 100], ["Normandie", 7.43, 43], ["PACA", 7.42, 91], ["Grand Est", 7.41, 73], ["Centre-Val de Loire", 7.4, 27], ["Ile de France", 7.19, 135], ["Corse", 7.08, 5], ["Guadeloupe", 7.03, 3], ["Océan Indien", 7.0, 7], ["Martinique", 6.87, 5], ["Guyane", 6.67, 2]], "subscores": [["Accueil", 7.32], ["Prise en charge infirmiers", 8.18], ["Prise en charge médecins", 8.09], ["Chambre", 7.35], ["Repas", 5.97], ["Organisation sortie", 6.42]], "national": 7.4, "diffuses": 837, "total": 1150};
+
+const D = window.__SATIS__;
+const charts = {};
+['c_region','c_sub','c_nb'].forEach(id=>charts[id]=echarts.init(document.getElementById(id),'chu'));
+let tri = 'desc';
+
+function render(){
+  const regs = [...D.regions];                 // [region, note/10, nb_etab] triées desc
+  const best = regs[0], worst = regs[regs.length-1];
+  document.getElementById('k_nat').querySelector('.val').textContent = D.national.toFixed(2);
+  document.getElementById('k_best').querySelector('.val').textContent = best[0];
+  document.getElementById('k_best').querySelector('.note').textContent = best[1].toFixed(2)+' /10';
+  document.getElementById('k_worst').querySelector('.val').textContent = worst[0];
+  document.getElementById('k_worst').querySelector('.note').textContent = worst[1].toFixed(2)+' /10';
+  document.getElementById('k_nreg').querySelector('.val').textContent = regs.length;
+  document.getElementById('k_diff').querySelector('.val').textContent = fmt(D.diffuses);
+  document.getElementById('k_diff').querySelector('.note').textContent =
+    'sur '+fmt(D.total)+' ('+Math.round(100*D.diffuses/D.total)+'%)';
+
+  document.getElementById('insight').innerHTML =
+    `Satisfaction nationale <b>${D.national.toFixed(2)}/10</b> en 2020 (${fmt(D.diffuses)} établissements diffusés). `
+    +`Meilleure région : <b>${best[0]}</b> (${best[1].toFixed(2)}) ; à améliorer : <b>${worst[0]}</b> (${worst[1].toFixed(2)}).`;
+
+  // B8 : régions, barres horizontales + repère national
+  const ordered = tri==='asc' ? [...regs].reverse() : [...regs];
+  const forBar = [...ordered].reverse();       // ECharts y-cat de bas en haut
+  charts.c_region.setOption({backgroundColor:'transparent',grid:{...GRID,left:'3%'},
+    tooltip:Object.assign({},TT,{valueFormatter:v=>v.toFixed(2)+' /10'}),
+    xAxis:{type:'value',max:10,...AX,...SPL},
+    yAxis:{type:'category',data:forBar.map(d=>d[0]),...AX,
+      axisLabel:{color:'#605e5c',width:170,overflow:'truncate'}},
+    series:[{type:'bar',data:forBar.map(d=>({value:d[1],
+        itemStyle:{color:d[0]===ordered[0][0]?'#0b5cad':'#118dff',borderRadius:[0,5,5,0]}})),
+      markLine:{silent:true,symbol:'none',lineStyle:{color:'#e8590c',type:'dashed'},
+        data:[{xAxis:D.national,label:{formatter:'Nat. '+D.national.toFixed(2),
+          color:'#e8590c',position:'insideEndTop'}}]}}]},true);
+
+  // dimensions
+  const sub=[...D.subscores].sort((a,b)=>a[1]-b[1]);
+  charts.c_sub.setOption({backgroundColor:'transparent',grid:{...GRID,left:'3%'},
+    tooltip:Object.assign({},TT,{valueFormatter:v=>v.toFixed(2)+' /10'}),
+    xAxis:{type:'value',max:10,...AX,...SPL},
+    yAxis:{type:'category',data:sub.map(d=>d[0]),...AX,axisLabel:{color:'#605e5c',width:150,overflow:'truncate'}},
+    series:[{type:'bar',data:sub.map(d=>d[1]),itemStyle:{color:'#7048e8',borderRadius:[0,5,5,0]}}]},true);
+
+  // nb établissements
+  const nb=[...regs].sort((a,b)=>a[2]-b[2]);
+  charts.c_nb.setOption({backgroundColor:'transparent',grid:{...GRID,left:'3%'},
+    tooltip:Object.assign({},TT,{}),
+    xAxis:{type:'value',...AX,...SPL},
+    yAxis:{type:'category',data:nb.map(d=>d[0]),...AX,axisLabel:{color:'#605e5c',width:150,overflow:'truncate',fontSize:10}},
+    series:[{type:'bar',data:nb.map(d=>d[2]),itemStyle:{color:'#13a10e',borderRadius:[0,5,5,0]}}]},true);
+}
+
+// le helper de slicer ajoute un bouton 'Tous' non pertinent ici -> on fixe l'état initial
+function initTiles(dim,val){document.querySelectorAll('#sl_'+dim+' button').forEach(b=>
+  b.setAttribute('aria-pressed', String(b.dataset.v===val)));}
+initTiles('tri','desc'); initTiles('campagne','2020');
+// slicer "tri" (tiles) ; "campagne" verrouillée sur 2020
+document.querySelectorAll('#sl_tri button').forEach(b=>b.onclick=()=>{
+  if(b.dataset.v==='all')return;
+  document.querySelectorAll('#sl_tri button').forEach(x=>x.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true'); tri=b.dataset.v; render();});
+// chips : pas de cross-filter ici (mono-campagne, mesure = moyenne)
+document.getElementById('chips').innerHTML =
+  '<span class="chips-empty">Campagne 2020 · score global ajusté e-Satis 48h MCO</span>';
+const ro=new ResizeObserver(es=>{for(const e of es){const i=echarts.getInstanceByDom(e.target);if(i)i.resize();}});
+Object.values(charts).forEach(c=>ro.observe(c.getDom()));
+window.addEventListener('resize',()=>Object.values(charts).forEach(c=>c.resize()));
+render();
+
+</script></body></html>

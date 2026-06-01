@@ -107,7 +107,7 @@ Correspondance entre les colonnes source (`Consultation`) et le modèle `Fait_Co
 | `Motif` | VARCHAR | *(SUPPRIMÉ)* | §2.2 texte libre + minimisation RGPD (aucun besoin) |
 | `Num_consultation` | INTEGER | `consultation_key` (surrogate) | §2.2 : ID source non exposé, remplacé par une clé technique |
 | `Id_mut` | INTEGER | *(non repris)* | hors besoins |
-| — | — | `etablissement_key` (FK) | ⚠️ source sans établissement (cf. B1) |
+| — | — | *(pas de FK établissement)* | source mono-établissement → B1 non applicable (cf. §5) |
 
 ---
 
@@ -205,6 +205,13 @@ La règle R7 et le surrogate `consultation_key` ont été **testés sur les donn
 
 ---
 
-## 5. POINT OUVERT
+## 5. BESOIN B1 (ÉTABLISSEMENT) : NON APPLICABLE
 
-**Besoin B1 (établissement)** : la table source `Consultation` ne porte aucun identifiant d'établissement. La FK `etablissement_key` reste en attente de l'arbitrage d'équipe (cf. `docs/03-fait-consultation.md`). Ce point ne concerne pas le cleaning lui-même mais le mapping de cette FK.
+**Conclusion (vérifiée sur la source)** : la base PostgreSQL des consultations est **mono-établissement**. Le besoin B1 (« taux de consultation par établissement ») n'est donc pas applicable à ce fait.
+
+Preuve (analyse des 12 tables) :
+- aucune colonne établissement / FINESS / organisation dans aucune table ;
+- `Professionnel_de_sante` identifié par numéro **ADELI** (annuaire national), sans affiliation d'établissement ;
+- `Salle` = blocs / étages / salles d'**un même site** (7 blocs `Bloc-A`…`Bloc-F`), pas des établissements distincts.
+
+→ L'axe établissement est porté par `Fait_Hospitalisation` (`identifiant_organisation`) et `Fait_Satisfaction` (`finess_geo`). Aucune FK établissement n'est donc modélisée sur `Fait_Consultation` (cf. `docs/03-fait-consultation.md`).

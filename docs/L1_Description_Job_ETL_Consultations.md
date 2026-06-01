@@ -228,12 +228,11 @@ WHERE heure_debut IS NOT NULL AND heure_fin IS NOT NULL;
 ```sql
 -- Résolution des FK vers les dimensions conformes
 SELECT
+  c.consultation_key,                        -- surrogate (grain), pas d'ID source exposé
   t.temps_key,
   p.patient_key,
   pr.professionnel_key,
   d.diagnostic_key,
-  c.num_consultation,
-  c.motif,
   1                AS nb_consultation,        -- mesure de comptage
   c.duree_minutes
 FROM silver_consultation_clean c
@@ -243,7 +242,7 @@ LEFT JOIN dim_professionnel pr ON pr.id_professionnel = c.id_prof_sante
 LEFT JOIN dim_diagnostic    d  ON d.code_diagnostic   = c.code_diag;
 ```
 
-> **Point d'attention (B1 — établissement)** : la source `Consultation` ne porte pas d'identifiant d'établissement (cf. `docs/03-fait-consultation.md`). La FK `etablissement_key` est laissée en attente de l'arbitrage d'équipe (établissement unique / dérivation via professionnel / hors périmètre).
+> **Besoin B1 (établissement) — non applicable** : la source `Consultation` est mono-établissement (vérifié, cf. `docs/03-fait-consultation.md`). Aucune FK établissement n'est modélisée ; l'axe établissement est porté par `Fait_Hospitalisation` et `Fait_Satisfaction`.
 
 ---
 
@@ -252,13 +251,11 @@ LEFT JOIN dim_diagnostic    d  ON d.code_diagnostic   = c.code_diag;
 ```sql
 -- Table de fait cible : Parquet, partitionnée par année, bucketée
 CREATE TABLE IF NOT EXISTS fait_consultation (
+    consultation_key   BIGINT,             -- surrogate (grain), cf. §sécurité
     temps_key          INT,
-    patient_key        INT,
+    patient_key        INT,                -- patient pseudonymisé
     professionnel_key  INT,
     diagnostic_key     INT,
-    etablissement_key  INT,
-    num_consultation   INT,
-    motif              STRING,
     nb_consultation    INT,
     duree_minutes      DOUBLE
 )
@@ -273,8 +270,7 @@ SET hive.enforce.bucketing = true;
 
 INSERT OVERWRITE TABLE fait_consultation PARTITION (annee)
 SELECT
-  temps_key, patient_key, professionnel_key, diagnostic_key,
-  etablissement_key, num_consultation, motif,
+  consultation_key, temps_key, patient_key, professionnel_key, diagnostic_key,
   nb_consultation, duree_minutes,
   year(date_consultation) AS annee
 FROM transformed_consultation;
