@@ -1,0 +1,53 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Data (sensitive)
+data/
+*.csv
+*.xlsx
+*.parquet
+*.db
+
+# Logs
+*.log
+logs/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Sensitive config
+.env
+.env.local
+secrets/
+credentials/
+
+# Build
+target/
+*.jar
+*.war
+
+# Hive
+metastore_db/
+.hivehistory
