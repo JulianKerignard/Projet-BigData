@@ -1,12 +1,26 @@
-# IDE
+# === DONNÉES SOURCES — NE JAMAIS COMMIT (2.1 Go + données patients sensibles) ===
+DATA 2024/
+data/
+data/raw/
+data/cleaned/
+*.csv
+*.xlsx
+*.parquet
+*.avro
+*.orc
+*.db
+*.dump
+*.sql.gz
+*.pdf
+
+# === IDE ===
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
-# Python
+# === Python ===
 __pycache__/
 *.py[cod]
 *$py.class
@@ -30,26 +44,30 @@ DATA*/
 *.log
 logs/
 
-# Temporary
+# === Temporary ===
 tmp/
 temp/
 *.tmp
 
-# OS
-Thumbs.db
+# === OS ===
 .DS_Store
+Thumbs.db
 
-# Sensitive config
+# === Config sensible / secrets ===
 .env
 .env.local
 secrets/
 credentials/
+*.key
+*.pem
 
-# Build
+# === Build ===
 target/
 *.jar
 *.war
 
-# Hive
+# === Hive / Big Data ===
 metastore_db/
+derby.log
+spark-warehouse/
 .hivehistory
