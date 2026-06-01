@@ -98,14 +98,14 @@ Correspondance entre les colonnes source (`Consultation`) et le modèle `Fait_Co
 
 | Colonne source | Type source | Cible (Fait_Consultation) | Transformation |
 |----------------|-------------|---------------------------|----------------|
-| `Num_consultation` | INTEGER | `num_consultation` (dim. dégénérée) | CAST INT |
 | `Date` | DATE | `temps_key` (FK) | lookup Dim_Temps sur la date |
-| `Id_patient` | INTEGER | `patient_key` (FK) | pseudonymisation puis lookup Dim_Patient |
+| `Id_patient` | INTEGER | `patient_key` (FK) | **pseudonymisation SHA-256** (§2.3) puis lookup Dim_Patient |
 | `Id_prof_sante` | VARCHAR | `professionnel_key` (FK) | lookup Dim_Professionnel |
 | `Code_diag` | VARCHAR | `diagnostic_key` (FK) | NULL/'' → 'UNKNOWN', lookup Dim_Diagnostic |
-| `Motif` | VARCHAR | `motif` (dim. dégénérée) | conservé tel quel |
 | `Heure_debut`, `Heure_fin` | TIME | `duree_minutes` (mesure) | (fin - début) en minutes ; NULL si incohérent |
 | — | — | `nb_consultation` (mesure) | constante = 1 |
+| `Motif` | VARCHAR | *(SUPPRIMÉ)* | §2.2 texte libre + minimisation RGPD (aucun besoin) |
+| `Num_consultation` | INTEGER | *(à arbitrer)* | §2.2 identifiant direct → suppression recommandée du fait de reporting |
 | `Id_mut` | INTEGER | *(non repris)* | hors besoins |
 | — | — | `etablissement_key` (FK) | ⚠️ source sans établissement (cf. B1) |
 
@@ -123,8 +123,28 @@ Implémentées dans `sql/cleaning/consultations_cleaning.hql` (Bronze → Silver
 | R4 | Date hors plage 2015-2023 | rejet de la ligne | 0 constaté |
 | R5 | Heure incohérente (`fin < début`) | `duree_minutes` mise à NULL | **10** |
 | R6 | Sexe patient `male`/`female` | standardisé `M`/`F` (Dim_Patient) | 100 000 |
+| R7 | Pseudonymisation `Id_patient` | SHA-256 + clé maître + sel par patient (§2.3) | 1 027 157 |
 
 Règles R1, R2, R4 conservées comme **filets de sécurité** pour les rechargements futurs, même si le profiling n'a rien détecté actuellement.
+
+### Conformité Securite_Anonymisation_NFR.md (champ par champ)
+
+Application du verdict du document de sécurité à chaque colonne de la consultation :
+
+| Champ source | Règle du document | Verdict | Décision pipeline |
+|--------------|-------------------|---------|-------------------|
+| `Id_patient` | 🔐 PSEUDONYMISER (§2.3) | obligatoire | SHA-256 + clé maître + sel par patient, table `patient_mapping_secure` (R7) |
+| `Sexe` (Dim_Patient) | ✅ CONSERVER | axe de reporting | **conservé**, standardisé `M`/`F` (R6) |
+| `Motif` | ❌ texte libre → SUPPRIMER/RÉSUMER (§2.2) | recommandé | **supprimé** (aucun besoin + minimisation RGPD) |
+| `Code_diag` | 🔒 GÉNÉRALISER par catégorie (§2.2) | recommandé | conservé spécifique pour B2 ; généralisation possible via `Dim_Diagnostic.categorie` — **à arbitrer** |
+| `Date` | 📅 ARRONDIR au mois (§2.2) | recommandé | jour conservé (alimente Dim_Temps) ; arrondi au mois possible (besoins = période) — **à arbitrer** |
+| `Num_consultation` | ❌ identifiant direct → SUPPRIMER (§2.2) | recommandé | **à arbitrer** : suppression du fait de reporting vs conservation pour audit (§1.2) |
+| `Heure_debut/fin` → `duree_minutes` | ✅ agrégat sans date exacte | OK | conservé comme mesure |
+
+**Contrôle de conformité ajouté au script** (§2.3 étape 4) : vérification qu'aucun identifiant patient en clair ne subsiste dans la table analytique (`id_patient_pseudo` doit être un hash de 64 caractères, jamais NULL).
+
+> Points clairs **appliqués** : pseudonymisation patient, suppression du motif, conservation du sexe.
+> Points touchant le modèle partagé `Fait_Consultation` (généralisation diagnostic, arrondi date, suppression `num_consultation`) **signalés pour arbitrage en review croisée** plutôt que tranchés unilatéralement.
 
 ### Contrôles qualité post-nettoyage
 
@@ -160,6 +180,8 @@ Les règles de nettoyage ont été **exécutées et vérifiées** sur les donné
 **Contrôles qualité finaux** : doublons résiduels = 0, durées négatives = 0.
 
 > Sur les données réelles seules (sans injection), le pipeline ne rejette aucune ligne et corrige uniquement les 10 horaires incohérents → cohérent avec un profiling de très bonne qualité.
+
+> **Limites du test** : les règles R1→R6 ont été validées sur données réelles (SQL Postgres, transposition fidèle des fonctions HiveQL). La règle **R7 (pseudonymisation)** et la **suppression du motif**, ajoutées ensuite pour conformité au document de sécurité, n'ont pas été rejouées sur les données réelles (environnement jetable détruit). La syntaxe HiveQL exacte (`sha2`, `unix_timestamp`) ne s'exécute réellement que sur le Hive des VM.
 
 ---
 
