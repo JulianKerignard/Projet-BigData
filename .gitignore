@@ -1,0 +1,45 @@
+# === Données sources (NE JAMAIS COMMIT - 2.1 Go + données patients sensibles) ===
+DATA 2024/
+data/raw/
+data/cleaned/
+*.csv
+*.parquet
+*.avro
+*.orc
+*.dump
+*.sql.gz
+
+# === Sujet / docs lourds ===
+*.pdf
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+*.egg-info/
+
+# === Secrets / config locale ===
+.env
+.env.local
+*.local
+credentials.json
+*.key
+*.pem
+
+# === IDE ===
+.idea/
+.vscode/
+*.iml
+
+# === Big Data / outils ===
+metastore_db/
+derby.log
+spark-warehouse/
+*.log
