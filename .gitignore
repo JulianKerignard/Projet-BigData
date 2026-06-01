@@ -19,10 +19,12 @@ env/
 
 # Data (sensitive)
 data/
+DATA*/
 *.csv
 *.xlsx
 *.parquet
 *.db
+*.zip
 
 # Logs
 *.log
