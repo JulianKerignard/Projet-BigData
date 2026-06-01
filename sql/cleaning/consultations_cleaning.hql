@@ -76,16 +76,20 @@ FROM (
 
 -- ---------------------------------------------------------------------
 -- Étape 4 : standardisation + corrections, AVEC patient pseudonymisé
---   - R3 : code_diag NULL/'' -> 'UNKNOWN'
---   - R4 : date hors plage 2015-2023 -> rejet
+--   - R3 : code_diag NULL/'' -> 'UNKNOWN' (généralisation par catégorie
+--          gérée dans Dim_Diagnostic + RBAC, cf. §2.2 / décision 1)
+--   - R4 : date hors plage 2015-2023 -> rejet ; date conservée (décision 2,
+--          date événement analogue à date_deces -> CONSERVER)
 --   - R5 : heure_fin < heure_debut -> duree_minutes = NULL
 --   - §2.2 : 'motif' (texte libre) SUPPRIMÉ (aucun besoin + risque PII)
+--   - §2.2 : 'num_consultation' (identifiant direct) SUPPRIMÉ, remplacé par
+--          un surrogate 'consultation_key' (décision 3, grain préservé)
 --   - id_patient en clair JAMAIS propagé : seul id_patient_pseudo subsiste
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS silver_consultation;
 CREATE TABLE silver_consultation AS
 SELECT
-  CAST(c.num_consultation AS INT)                        AS num_consultation,
+  ROW_NUMBER() OVER (ORDER BY c.num_consultation)        AS consultation_key,  -- surrogate
   m.id_patient_pseudo,                                   -- pseudonymisé (plus d'ID clair)
   c.id_prof_sante,
   COALESCE(NULLIF(c.code_diag, ''), 'UNKNOWN')           AS code_diag,

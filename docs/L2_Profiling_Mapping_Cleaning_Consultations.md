@@ -105,7 +105,7 @@ Correspondance entre les colonnes source (`Consultation`) et le modèle `Fait_Co
 | `Heure_debut`, `Heure_fin` | TIME | `duree_minutes` (mesure) | (fin - début) en minutes ; NULL si incohérent |
 | — | — | `nb_consultation` (mesure) | constante = 1 |
 | `Motif` | VARCHAR | *(SUPPRIMÉ)* | §2.2 texte libre + minimisation RGPD (aucun besoin) |
-| `Num_consultation` | INTEGER | *(à arbitrer)* | §2.2 identifiant direct → suppression recommandée du fait de reporting |
+| `Num_consultation` | INTEGER | `consultation_key` (surrogate) | §2.2 : ID source non exposé, remplacé par une clé technique |
 | `Id_mut` | INTEGER | *(non repris)* | hors besoins |
 | — | — | `etablissement_key` (FK) | ⚠️ source sans établissement (cf. B1) |
 
@@ -136,15 +136,22 @@ Application du verdict du document de sécurité à chaque colonne de la consult
 | `Id_patient` | 🔐 PSEUDONYMISER (§2.3) | obligatoire | SHA-256 + clé maître + sel par patient, table `patient_mapping_secure` (R7) |
 | `Sexe` (Dim_Patient) | ✅ CONSERVER | axe de reporting | **conservé**, standardisé `M`/`F` (R6) |
 | `Motif` | ❌ texte libre → SUPPRIMER/RÉSUMER (§2.2) | recommandé | **supprimé** (aucun besoin + minimisation RGPD) |
-| `Code_diag` | 🔒 GÉNÉRALISER par catégorie (§2.2) | recommandé | conservé spécifique pour B2 ; généralisation possible via `Dim_Diagnostic.categorie` — **à arbitrer** |
-| `Date` | 📅 ARRONDIR au mois (§2.2) | recommandé | jour conservé (alimente Dim_Temps) ; arrondi au mois possible (besoins = période) — **à arbitrer** |
-| `Num_consultation` | ❌ identifiant direct → SUPPRIMER (§2.2) | recommandé | **à arbitrer** : suppression du fait de reporting vs conservation pour audit (§1.2) |
+| `Code_diag` | 🔒 GÉNÉRALISER par catégorie (§2.2) | **tranché** | FK spécifique conservée dans le fait pour B2 ; reporting par défaut sur `Dim_Diagnostic.categorie` + accès au code précis restreint par **RBAC** (§1.2) |
+| `Date` | 📅 ARRONDIR au mois (§2.2) | **tranché** | **conservée** au grain jour : date événement analogue à `date_deces` (que le doc conserve pour l'analyse temporelle) ; le patient étant déjà pseudonymisé, le risque de ré-identification est maîtrisé |
+| `Num_consultation` | ❌ identifiant direct → SUPPRIMER (§2.2) | **tranché** | **supprimé** du fait, remplacé par un surrogate `consultation_key` (grain préservé, ID source non exposé) |
 | `Heure_debut/fin` → `duree_minutes` | ✅ agrégat sans date exacte | OK | conservé comme mesure |
 
 **Contrôle de conformité ajouté au script** (§2.3 étape 4) : vérification qu'aucun identifiant patient en clair ne subsiste dans la table analytique (`id_patient_pseudo` doit être un hash de 64 caractères, jamais NULL).
 
-> Points clairs **appliqués** : pseudonymisation patient, suppression du motif, conservation du sexe.
-> Points touchant le modèle partagé `Fait_Consultation` (généralisation diagnostic, arrondi date, suppression `num_consultation`) **signalés pour arbitrage en review croisée** plutôt que tranchés unilatéralement.
+#### Arbitrage des 3 points touchant le modèle partagé
+
+| Point | Décision | Justification |
+|-------|----------|---------------|
+| Généralisation diagnostic | FK spécifique + `categorie` dans la dimension + RBAC | concilie B2 (analyse par diagnostic) et §2.2 ; standard DWH (grain fin au fait, généralisation à la dimension) |
+| Arrondi de la date | conservée au grain jour | le doc conserve les dates événement (`date_deces`) et n'arrondit que les dates identifiantes (`date_naissance`) ; pseudonymisation patient déjà en place |
+| Suppression `num_consultation` | supprimé → surrogate `consultation_key` | §2.2 (identifiant direct) ; le surrogate préserve le grain sans exposer l'ID source |
+
+Le modèle partagé `docs/03-fait-consultation.md` a été mis à jour en conséquence (retrait `num_consultation` + `motif`, ajout `consultation_key`).
 
 ### Contrôles qualité post-nettoyage
 
@@ -181,7 +188,20 @@ Les règles de nettoyage ont été **exécutées et vérifiées** sur les donné
 
 > Sur les données réelles seules (sans injection), le pipeline ne rejette aucune ligne et corrige uniquement les 10 horaires incohérents → cohérent avec un profiling de très bonne qualité.
 
-> **Limites du test** : les règles R1→R6 ont été validées sur données réelles (SQL Postgres, transposition fidèle des fonctions HiveQL). La règle **R7 (pseudonymisation)** et la **suppression du motif**, ajoutées ensuite pour conformité au document de sécurité, n'ont pas été rejouées sur les données réelles (environnement jetable détruit). La syntaxe HiveQL exacte (`sha2`, `unix_timestamp`) ne s'exécute réellement que sur le Hive des VM.
+### Validation de la pseudonymisation (R7) sur données réelles
+
+La règle R7 et le surrogate `consultation_key` ont été **testés sur les données réelles** (`sha2` Hive ↔ `digest(...,'sha256')` Postgres + pgcrypto).
+
+| Test | Résultat attendu | Vérifié |
+|------|------------------|:-------:|
+| Format du pseudo (100 000 patients) | hash de 64 caractères, jamais NULL | ✅ 100 000/100 000 |
+| Unicité du pseudo (pas de collision) | autant de pseudos que de patients | ✅ 100 000 distincts |
+| Déterminisme (recalcul indépendant) | 0 divergence → rechargements stables, jointures inter-faits cohérentes | ✅ 0 |
+| Jointure sur 1 027 157 consultations | aucune perte de ligne | ✅ 1 027 157 = 1 027 157 |
+| Aucun ID patient en clair / pseudo invalide | 0 | ✅ 0 |
+| Surrogate `consultation_key` unique | grain préservé (1 ligne/consultation) | ✅ 1 027 157 |
+
+> **Limite résiduelle** : tests exécutés en SQL Postgres (transposition fidèle des fonctions HiveQL). La syntaxe HiveQL exacte (`sha2`, `unix_timestamp`, `ROW_NUMBER`) ne s'exécute réellement que sur le Hive des VM. La gestion des secrets (`MASTER_KEY` via KMS, jamais sur disque) relève de l'environnement de production.
 
 ---
 
