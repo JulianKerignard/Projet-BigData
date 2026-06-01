@@ -10,11 +10,11 @@ USE chu_entrepot;
 DROP TABLE IF EXISTS fait_satisfaction;
 
 CREATE TABLE fait_satisfaction (
-  date_id           INT           COMMENT 'FK -> dim_temps (YYYYMMDD), date de recueil',
+  date_id           INT           COMMENT 'FK -> dim_temps (YYYYMM01, date arrondie au mois - anonymisation)',
   etab_id           STRING        COMMENT 'FK -> dim_etablissement (FINESS)',
   note_satisfaction DECIMAL(3,1)  COMMENT 'Note de satisfaction normalisee 0-10 (score e-Satis / 10)'
 )
-COMMENT 'Fait Satisfaction patients - grain : 1 note par etablissement et par date de recueil'
+COMMENT 'Fait Satisfaction patients - grain : 1 note par etablissement et par mois de recueil'
 STORED AS ORC
 TBLPROPERTIES ('orc.compress' = 'SNAPPY');
 

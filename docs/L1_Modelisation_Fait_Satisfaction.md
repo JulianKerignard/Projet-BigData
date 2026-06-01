@@ -65,11 +65,14 @@ Cardinalités (crow's foot) : `Dim (1) —— (N) Fait`.
 
 | Attribut | Type physique (Hive) | Rôle | Contrainte | Source / dérivation |
 |---|---|---|---|---|
-| `date_id` | INT | **FK** → `Dim_Temps` | format `YYYYMMDD` | date de recueil de la campagne |
+| `date_id` | INT | **FK** → `Dim_Temps` | format `YYYYMM01` (**arrondi au mois**) | date de recueil ramenée au 1er du mois |
 | `etab_id` | STRING | **FK** → `Dim_Etablissement` | = FINESS | colonne `finess` du fichier e-Satis |
 | `note_satisfaction` | DECIMAL(3,1) | **Mesure** | ∈ [0.0, 10.0] | `score_all_rea_ajust / 10` |
 
-- **Grain** : 1 ligne = 1 note de satisfaction pour 1 établissement à 1 date de recueil.
+- **Grain** : 1 ligne = 1 note de satisfaction pour 1 établissement et 1 **mois** de recueil.
+- **Anonymisation** : la date est **arrondie au mois** (`YYYYMM01`), aucune date au jour n'est
+  conservée, conformément à la règle « date avis → arrondir au mois » de
+  [`Securite_Anonymisation_NFR.md`](Securite_Anonymisation_NFR.md) §2.2.D.
 - **Mesure** : `note_satisfaction` est **additive par moyenne** (on agrège avec `AVG`, jamais
   `SUM`) — c'est une note, pas un compteur.
 

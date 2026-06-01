@@ -20,6 +20,8 @@ CREATE EXTERNAL TABLE staging.satisfaction (
   region              STRING,
   date_recueil        STRING,        -- ex. '2020-01-15'
   score_all_rea_ajust STRING         -- score global ajusté, échelle 0-100 (texte : virgule décimale possible)
+  -- NB anonymisation (§2.2.D) : on ne déclare/projette QUE des colonnes non sensibles.
+  -- Aucun champ de commentaire / avis en texte libre n'est ingéré.
 )
 ROW FORMAT DELIMITED FIELDS TERMINATED BY ';'
 STORED AS TEXTFILE
@@ -30,13 +32,14 @@ USE chu_entrepot;
 
 -- -----------------------------------------------------------------------------
 -- 1. Chargement des lignes VALIDES
+--    - anonymisation : date_id ARRONDI AU MOIS (YYYYMM01), aucune date au jour conservée (§2.2.D)
 --    - normalisation : virgule -> point, puis score/10 -> note 0-10
 --    - validation plage : 0 <= note <= 10
 --    - intégrité référentielle : FINESS présent dans dim_etablissement
 -- -----------------------------------------------------------------------------
 INSERT OVERWRITE TABLE fait_satisfaction
 SELECT
-  CAST(REPLACE(s.date_recueil, '-', '') AS INT)                         AS date_id,
+  CAST(CONCAT(SUBSTR(REPLACE(s.date_recueil, '-', ''), 1, 6), '01') AS INT) AS date_id,
   s.finess                                                              AS etab_id,
   ROUND(CAST(REPLACE(s.score_all_rea_ajust, ',', '.') AS DECIMAL(5,2)) / 10, 1) AS note_satisfaction
 FROM staging.satisfaction s
