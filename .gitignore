@@ -1,45 +1,53 @@
-# === Données sources (NE JAMAIS COMMIT - 2.1 Go + données patients sensibles) ===
-DATA 2024/
-data/raw/
-data/cleaned/
-*.csv
-*.parquet
-*.avro
-*.orc
-*.dump
-*.sql.gz
-
-# === Sujet / docs lourds ===
-*.pdf
-
-# === OS ===
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-Thumbs.db
 
-# === Python ===
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
 .venv/
 venv/
 env/
-.ipynb_checkpoints/
-*.egg-info/
 
-# === Secrets / config locale ===
+# Data (sensitive)
+data/
+*.csv
+*.xlsx
+*.parquet
+*.db
+
+# Logs
+*.log
+logs/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Sensitive config
 .env
 .env.local
-*.local
-credentials.json
-*.key
-*.pem
+secrets/
+credentials/
 
-# === IDE ===
-.idea/
-.vscode/
-*.iml
+# Build
+target/
+*.jar
+*.war
 
-# === Big Data / outils ===
+# Hive
 metastore_db/
-derby.log
-spark-warehouse/
-*.log
+.hivehistory
