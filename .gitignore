@@ -26,6 +26,9 @@ DATA*/
 *.db
 *.zip
 
+# Exceptions : reference data committed in repo
+!scripts/ref/*.csv
+
 # Logs
 *.log
 logs/
