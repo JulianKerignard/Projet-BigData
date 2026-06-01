@@ -40,6 +40,16 @@ DATA*/
 *.db
 *.zip
 
+# Exceptions : reference data committed in repo
+!scripts/ref/*.csv
+
+# KNIME — workflows & workspace personnels
+knime/
+*.knwf
+*.knar
+workflow.knime
+.metadata/
+
 # Logs
 *.log
 logs/
