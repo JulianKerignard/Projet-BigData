@@ -42,7 +42,6 @@ Fait_Consultation
 ├── patient_key        (FK -> Dim_Patient)          -- depuis Consultation.Id_patient (pseudonymisé)
 ├── professionnel_key  (FK -> Dim_Professionnel)    -- depuis Consultation.Id_prof_sante
 ├── diagnostic_key     (FK -> Dim_Diagnostic)       -- depuis Consultation.Code_diag
-├── etablissement_key  (FK -> Dim_Etablissement)    -- ⚠️ voir note ci-dessous
 ├── nb_consultation    (mesure)                     -- = 1, additive
 └── duree_minutes      (mesure)                     -- Heure_fin - Heure_debut, additive
 ```
@@ -60,7 +59,6 @@ Fait_Consultation
 | patient_key | Dim_Patient | `Consultation.Id_patient` |
 | professionnel_key | Dim_Professionnel | `Consultation.Id_prof_sante` |
 | diagnostic_key | Dim_Diagnostic | `Consultation.Code_diag` |
-| etablissement_key | Dim_Etablissement | ⚠️ non présent dans la source |
 
 ### Mesures
 
@@ -75,22 +73,23 @@ Le « taux de consultation » des besoins se calcule à partir de `SUM(nb_consul
 
 - `consultation_key` : surrogate key technique (générée au chargement) servant de clé primaire du fait et préservant le grain (une ligne = une consultation), sans exposer l'identifiant source `Num_consultation` (retiré pour conformité §2.2).
 
-## ⚠️ Point d'attention : besoin établissement (B1)
+## Besoin établissement (B1) : non applicable aux consultations
 
-La table source `Consultation` **ne contient aucun identifiant d'établissement**. Le besoin B1 (« taux de consultation par établissement ») ne peut donc pas être satisfait en l'état directement depuis cette source.
+**Conclusion (vérifiée sur la source)** : la base PostgreSQL des consultations est un système **mono-établissement**. Le besoin B1 (« taux de consultation par établissement ») n'est donc pas applicable à ce fait — il n'existe qu'un seul établissement.
 
-Hypothèses à trancher en équipe :
-1. **Établissement unique** : les consultations relèvent du seul CHU → `etablissement_key` pointe vers un établissement par défaut.
-2. **Dérivation** : rattacher la consultation à un établissement via le professionnel de santé (si un mapping prof → établissement existe).
-3. **Hors périmètre consultation** : l'axe établissement concerne surtout les hospitalisations ; B1 serait alors traité côté `Fait_Hospitalisation`.
+Preuve (analyse des 12 tables du dump) :
+- Aucune colonne établissement / FINESS / organisation dans aucune table.
+- `Consultation` ne référence aucun établissement (ni directement, ni via `Patient`, `Mutuelle`, `Diagnostic`).
+- `Professionnel_de_sante` est identifié par un numéro **ADELI** (annuaire national), sans affiliation d'établissement.
+- `Salle` décrit des **blocs / étages / salles d'un même site** (7 blocs `Bloc-A`…`Bloc-F`), pas des établissements distincts.
 
-> À valider lors de la review croisée. La FK `etablissement_key` est modélisée par anticipation mais son alimentation dépend de l'hypothèse retenue.
+→ L'axe établissement est porté par les **autres faits** qui disposent d'un code établissement : `Fait_Hospitalisation` (`identifiant_organisation`) et `Fait_Satisfaction` (`finess_geo`). La FK `etablissement_key` est donc retirée du modèle `Fait_Consultation` (pas de source pour l'alimenter).
 
 ## Correspondance besoins → modèle
 
 | Besoin | Axes (dimensions) | Mesure | Couvert |
 |--------|-------------------|--------|:-------:|
-| B1 Consultation par établissement / période | Établissement + Temps | nb_consultation | ⚠️ (voir note) |
+| B1 Consultation par établissement / période | Établissement + Temps | nb_consultation | N/A — source mono-établissement (porté par Hospitalisation / Satisfaction) |
 | B2 Consultation par diagnostic / période | Diagnostic + Temps | nb_consultation | ✅ |
 | B6 Consultation par professionnel | Professionnel | nb_consultation | ✅ |
 
