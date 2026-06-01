@@ -119,6 +119,9 @@ font-size:12px;cursor:pointer;transition:all .12s}
 .reset{margin-left:auto;align-self:center;border:1px solid #d9dde3;background:#fff;color:#6b7280;
 border-radius:4px;padding:8px 14px;font-size:12px;cursor:pointer}
 .reset:hover{background:#f3f4f6}
+.nav{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.nav a{text-decoration:none;font-size:12.5px;color:#4b5563;background:#fff;border:1px solid #d9dde3;border-radius:5px;padding:6px 12px}
+.nav a.on{background:#118dff;border-color:#118dff;color:#fff;font-weight:600}
 .insight{background:#fff;border:1px solid #e2e5ea;border-left:4px solid #118dff;border-radius:5px;
 padding:11px 16px;margin-bottom:14px;font-size:13.5px;color:#374151;line-height:1.5}
 .insight b{color:#1b1f27}
@@ -150,6 +153,13 @@ display:grid;place-items:center;font-size:22px;font-weight:700}
 <div class="topbar"><h1>Cloud Healthcare Unit — Consultations</h1>
   <span class="sub">Tableau de bord décisionnel</span>
   <span class="src">Source : 1 027 157 consultations (2015–2023) · agrégats RGPD</span></div>
+
+<div class="nav">
+  <a href="consultations_dashboard.html" class="on">Consultations</a>
+  <a href="hospitalisation_dashboard.html">Hospitalisation</a>
+  <a href="deces_dashboard.html">Décès</a>
+  <a href="satisfaction_dashboard.html">Satisfaction</a>
+</div>
 
 <div class="besoins">
   <div class="bes ko"><span class="dot"></span><b>B1</b> Par établissement × période — <span style="color:#9aa1ab">consultations mono-établissement → porté par Hospi / Satisfaction</span></div>
