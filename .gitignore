@@ -31,7 +31,16 @@ build/
 venv/
 env/
 
-# === Logs ===
+# Data (sensitive)
+data/
+DATA*/
+*.csv
+*.xlsx
+*.parquet
+*.db
+*.zip
+
+# Logs
 *.log
 logs/
 
