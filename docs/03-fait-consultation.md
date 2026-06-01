@@ -29,7 +29,7 @@ Tables de référence associées (alimentent les dimensions) : `Patient`, `Profe
 
 ## Grain
 
-**Une ligne = une consultation** (identifiée par `Num_consultation`).
+**Une ligne = une consultation** (`Num_consultation` dans la source ; identifiée dans le fait par le surrogate `consultation_key`).
 
 C'est le grain le plus fin possible et il permet d'agréger sur tous les axes (temps, patient, professionnel, diagnostic).
 
@@ -37,16 +37,20 @@ C'est le grain le plus fin possible et il permet d'agréger sur tous les axes (t
 
 ```
 Fait_Consultation
+├── consultation_key   (PK surrogate)               -- clé technique générée (grain)
 ├── temps_key          (FK -> Dim_Temps)            -- depuis Consultation.Date
-├── patient_key        (FK -> Dim_Patient)          -- depuis Consultation.Id_patient
+├── patient_key        (FK -> Dim_Patient)          -- depuis Consultation.Id_patient (pseudonymisé)
 ├── professionnel_key  (FK -> Dim_Professionnel)    -- depuis Consultation.Id_prof_sante
 ├── diagnostic_key     (FK -> Dim_Diagnostic)       -- depuis Consultation.Code_diag
 ├── etablissement_key  (FK -> Dim_Etablissement)    -- ⚠️ voir note ci-dessous
-├── num_consultation   (dimension dégénérée)        -- traçabilité vers la source
-├── motif              (dimension dégénérée)         -- motif textuel
 ├── nb_consultation    (mesure)                     -- = 1, additive
 └── duree_minutes      (mesure)                     -- Heure_fin - Heure_debut, additive
 ```
+
+> **Conformité sécurité** (cf. `docs/Securite_Anonymisation_NFR.md`) : le modèle a été ajusté pour respecter le document d'anonymisation.
+> - `num_consultation` (identifiant direct, §2.2) **retiré** → remplacé par le surrogate `consultation_key` qui préserve le grain sans exposer l'ID source.
+> - `motif` (texte libre, §2.2) **retiré** (aucun besoin + risque PII, minimisation RGPD).
+> - `Id_patient` **pseudonymisé** (SHA-256, §2.3) avant alimentation de Dim_Patient.
 
 ### Clés de dimension (FK)
 
@@ -67,10 +71,9 @@ Fait_Consultation
 
 Le « taux de consultation » des besoins se calcule à partir de `SUM(nb_consultation)` rapporté à l'axe d'analyse (établissement, diagnostic, professionnel) sur la période.
 
-### Dimensions dégénérées
+### Clé de substitution
 
-- `num_consultation` : conservée dans le fait (pas de dimension dédiée), pour la traçabilité.
-- `motif` : texte libre, conservé comme attribut dégénéré (pas d'axe d'analyse demandé dessus).
+- `consultation_key` : surrogate key technique (générée au chargement) servant de clé primaire du fait et préservant le grain (une ligne = une consultation), sans exposer l'identifiant source `Num_consultation` (retiré pour conformité §2.2).
 
 ## ⚠️ Point d'attention : besoin établissement (B1)
 
