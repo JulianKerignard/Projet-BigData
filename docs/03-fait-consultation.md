@@ -29,7 +29,7 @@ Tables de référence associées (alimentent les dimensions) : `Patient`, `Profe
 
 ## Grain
 
-**Une ligne = une consultation** (identifiée par `Num_consultation`).
+**Une ligne = une consultation** (`Num_consultation` dans la source ; identifiée dans le fait par le surrogate `consultation_key`).
 
 C'est le grain le plus fin possible et il permet d'agréger sur tous les axes (temps, patient, professionnel, diagnostic).
 
