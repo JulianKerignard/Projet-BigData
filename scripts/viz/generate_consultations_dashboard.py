@@ -184,8 +184,6 @@ display:grid;place-items:center;font-size:22px;font-weight:700}
   <div class="card full"><h3><span class="bcode">Période</span>Évolution annuelle des consultations</h3><div class="tag">L'année sélectionnée est mise en évidence · filtré par spécialité / sexe</div><div id="c_trend" class="chart" style="height:230px"></div></div>
   <div class="card"><h3><span class="bcode">B6</span>Consultations par spécialité</h3><div class="tag">Taux de consultation par professionnel (agrégé par spécialité)</div><div id="c_spec" class="chart"></div></div>
   <div class="card"><h3><span class="bcode">B2</span>Diagnostics par catégorie</h3><div class="tag">Taux de consultation par diagnostic · chapitres CIM-10 (généralisation §2.2)</div><div id="c_diag" class="chart"></div></div>
-  <div class="card"><h3><span class="bcode">B1</span>Consultations par établissement</h3><div class="tag">Taux de consultation par établissement × période</div>
-    <div class="blocked"><div class="mark">i</div><div class="t"><b>Non applicable</b> — source mono-établissement.<br>L'axe établissement est porté par les faits <b>Hospitalisation</b> et <b>Satisfaction</b>.</div></div></div>
   <div class="card"><h3><span class="bcode">Période</span>Saisonnalité mensuelle</h3><div class="tag">Répartition des consultations par mois</div><div id="c_month" class="chart"></div></div>
   <div class="card"><h3>Répartition par sexe</h3><div class="tag">Contexte démographique · patients ayant consulté</div><div id="c_sex" class="chart"></div></div>
 </div>
