@@ -105,12 +105,14 @@ SELECT COUNT(*) AS nb_notes_hors_plage
 FROM fait_satisfaction WHERE note_satisfaction NOT BETWEEN 0 AND 10;
 
 -- 4.3 Réconciliation des volumes (Bronze vs chargé vs rejeté)
-SELECT
-  (SELECT COUNT(*) FROM staging.satisfaction_raw)                                      AS bronze,
-  (SELECT COUNT(*) FROM fait_satisfaction
-     WHERE date_id = CAST(CONCAT('${hivevar:annee_campagne}','0101') AS INT))          AS charge,
-  (SELECT COUNT(*) FROM staging.rejets_satisfaction
-     WHERE fichier_source = CONCAT('esatis48h_', '${hivevar:annee_campagne}'))         AS rejete;
+--     (UNION ALL : Hive 2.x ne supporte pas les sous-requêtes scalaires en SELECT)
+SELECT 'bronze' AS etape, COUNT(*) AS lignes FROM staging.satisfaction_raw
+UNION ALL
+SELECT 'charge', COUNT(*) FROM fait_satisfaction
+ WHERE date_id = CAST(CONCAT('${hivevar:annee_campagne}','0101') AS INT)
+UNION ALL
+SELECT 'rejete', COUNT(*) FROM staging.rejets_satisfaction
+ WHERE fichier_source = CONCAT('esatis48h_', '${hivevar:annee_campagne}');
 
 -- 4.4 Top des motifs de rejet (R3 NOTE_NULLE attendu dominant : 25-46%)
 SELECT raison_rejet, COUNT(*) AS nb
