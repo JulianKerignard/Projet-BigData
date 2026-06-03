@@ -57,11 +57,15 @@ SPEC = {
          "color": "#e64980"},
     ],
     "charts": [
+        {"id": "c_map", "kind": "map", "dim": "region",
+         "label": "Carte des décès par région",
+         "tag": "Choroplèthe métropole — cliquez une région pour filtrer",
+         "bcode": "B7", "clickable": True, "span": "col3", "tall": True},
         {"id": "c_region", "kind": "barh", "dim": "region",
-         "label": "Décès par région",
-         "tag": "Nombre de décès par région de décès — année sélectionnée",
+         "label": "Décès par région (classement)",
+         "tag": "Nombre de décès par région — DOM inclus · année sélectionnée",
          "bcode": "B7",
-         "clickable": True, "sort": "desc", "span": "col6", "tall": True},
+         "clickable": True, "sort": "desc", "span": "col3", "tall": True},
         {"id": "c_age", "kind": "bar", "dim": "age",
          "label": "Par tranche d'âge",
          "tag": "Répartition des décès par âge",
@@ -102,6 +106,8 @@ besoins = [
     {"code": "Ctx", "label": "Sexe / âge en contexte (hors besoin imposé)", "status": "ctx"},
 ]
 
+GEOJSON = (ROOT / "scripts/viz/assets/fr_regions.geojson").read_text(encoding="utf-8")
+
 html = dc.page(
     title="Décès",
     sub="Tableau de bord décisionnel · interactif",
@@ -113,8 +119,9 @@ html = dc.page(
     charts=SPEC["charts"],
     spec_json=json.dumps(SPEC, ensure_ascii=False),
     narrative_js=NARRATIVE,
+    geojson=GEOJSON,
     foot="Cliquez n'importe quel graphique pour filtrer l'ensemble du rapport (cross-filtering). "
-         "Région dérivée du code lieu de décès (département → région 2016). "
+         "Région dérivée du code lieu de décès (département → région 2016). Carte = métropole. "
          "Prototype — sera reconstruit dans Power BI / Tableau sur Hive. Agrégats uniquement.",
 )
 
