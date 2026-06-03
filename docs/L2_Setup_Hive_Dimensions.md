@@ -83,8 +83,28 @@ Les **jobs d'alimentation** de ces dimensions (dédup + réconciliation des clé
 
 ---
 
-## 6. Limites / validation
+## 6. Validation (exécutée sur un vrai Hive)
 
-- Les scripts sont **prêts** mais **non exécutés** : aucun cluster Hive n'est disponible dans l'environnement courant (Hive tourne sur les VM). Ils ont été relus pour cohérence avec le MCD et le stack (Parquet).
-- Les contraintes PK sont **informatives** (Hive ne les impose pas) ; l'unicité est assurée par les jobs d'alimentation (déduplication).
+Les scripts ont été **exécutés et validés** sur un cluster **Apache Hive 2.3.2** monté en local
+via Docker (`docker/docker-compose.hive.yml` — Hadoop + metastore PostgreSQL + HiveServer2) :
+
+| Vérification | Résultat |
+|--------------|:--------:|
+| `00_setup_hive.hql` → bases `staging` + `chu_entrepot` créées | ✅ |
+| `01_dimensions_partagees.hql` → 6 dimensions créées sans erreur | ✅ |
+| Format de stockage = **Parquet** (`ParquetHiveSerDe`) | ✅ |
+| INSERT + SELECT sur `dim_temps` (lecture/écriture Parquet) | ✅ |
+
+Reproduire :
+```bash
+docker compose -f docker/docker-compose.hive.yml up -d        # démarre la stack
+docker cp sql/ddl/00_setup_hive.hql chu-hive-server:/tmp/ && \
+docker exec chu-hive-server beeline -u jdbc:hive2://localhost:10000 -f /tmp/00_setup_hive.hql
+# idem pour 01_dimensions_partagees.hql
+docker compose -f docker/docker-compose.hive.yml down -v       # nettoyage
+```
+
+**Notes** :
+- Les contraintes PK sont **informatives** (`DISABLE NOVALIDATE`, Hive ne les impose pas) ; l'unicité est assurée par les jobs d'alimentation (déduplication).
 - Les types utilisent `STRING` (idiomatique Hive) plutôt que `VARCHAR(n)` : pas de troncature silencieuse, performance équivalente en Parquet.
+- Cette stack Docker sert aussi au **benchmark L2** (comparer CSV/TEXTFILE vs Parquet partitionné/bucketé).
