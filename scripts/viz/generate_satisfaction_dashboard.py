@@ -32,6 +32,22 @@ it = ws.iter_rows(values_only=True)
 next(it)  # header
 
 
+# normalisation des libellés région du fichier e-Satis vers les noms canoniques
+# du GeoJSON (découpage 2016) pour que la carte matche
+REGION_NORM = {
+    "Ile de France": "Île-de-France", "Hauts de France": "Hauts-de-France",
+    "Nouvelle Aquitaine": "Nouvelle-Aquitaine", "PACA": "Provence-Alpes-Côte d'Azur",
+    "Grand-Est": "Grand Est", "Centre Val de Loire": "Centre-Val de Loire",
+    "Bourgogne Franche Comté": "Bourgogne-Franche-Comté",
+    "Auvergne Rhône Alpes": "Auvergne-Rhône-Alpes",
+}
+
+
+def norm_region(r):
+    r = (r or "").strip()
+    return REGION_NORM.get(r, r)
+
+
 def num(x):
     if x is None:
         return None
@@ -47,7 +63,7 @@ sub_n = {k: 0 for k in SUBSCORES}
 diffuses, total = 0, 0
 for row in it:
     total += 1
-    region = (row[4] or "").strip()
+    region = norm_region(row[4])
     sg = num(row[8])
     if region and sg is not None and 0 <= sg <= 100:
         diffuses += 1
@@ -86,9 +102,11 @@ kpis = [
     {"id": "k_diff", "label": "Établissements diffusés", "color": "#e64980", "note": ""},
 ]
 charts = [
+    {"id": "c_map", "label": "Carte de la satisfaction par région", "bcode": "B8",
+     "tag": "Score moyen /10 — métropole (dégradé)", "span": "col3", "tall": True},
     {"id": "c_region", "label": "Satisfaction par région (2020)", "bcode": "B8",
      "tag": "Score global ajusté moyen, sur 10 · repère = moyenne nationale",
-     "span": "col6", "tall": True},
+     "span": "col3", "tall": True},
     {"id": "c_sub", "label": "Satisfaction par dimension", "bcode": "Ctx",
      "tag": "Score moyen national par axe de l'expérience patient", "span": "col3", "tall": True},
     {"id": "c_nb", "label": "Établissements évalués par région", "bcode": "Ctx",
@@ -97,12 +115,24 @@ charts = [
 
 CUSTOM = r"""
 const D = window.__SATIS__;
+if(window.__FRGEO__){echarts.registerMap('france', window.__FRGEO__);}
 const charts = {};
-['c_region','c_sub','c_nb'].forEach(id=>charts[id]=echarts.init(document.getElementById(id),'chu'));
+['c_map','c_region','c_sub','c_nb'].forEach(id=>charts[id]=echarts.init(document.getElementById(id),'chu'));
 let tri = 'desc';
 
 function render(){
   const regs = [...D.regions];                 // [region, note/10, nb_etab] triées desc
+  // carte choroplèthe : score moyen /10 par région (métropole)
+  const scores=regs.map(d=>d[1]);
+  charts.c_map.setOption({backgroundColor:'transparent',
+    tooltip:Object.assign({},TTI,{formatter:p=>p.value!=null?`${p.name}: <b>${(+p.value).toFixed(2)}</b> /10`:`${p.name}: n/d`}),
+    visualMap:{type:'continuous',min:Math.floor(Math.min(...scores)*10)/10,
+      max:Math.ceil(Math.max(...scores)*10)/10,calculable:true,left:8,bottom:8,
+      inRange:{color:['#f3c0c0','#fde9a9','#bfe6b6','#13a10e']},textStyle:{color:'#605e5c',fontSize:10}},
+    series:[{type:'map',map:'france',roam:false,
+      data:regs.map(d=>({name:d[0],value:d[1]})),
+      itemStyle:{borderColor:'#fff',borderWidth:1,areaColor:'#f0f1f4'},
+      emphasis:{label:{show:false},itemStyle:{areaColor:'#fab005'}}}]},true);
   const best = regs[0], worst = regs[regs.length-1];
   document.getElementById('k_nat').querySelector('.val').textContent = D.national.toFixed(2);
   document.getElementById('k_best').querySelector('.val').textContent = best[0];
@@ -170,14 +200,15 @@ render();
 # pré-sélectionner les tiles par défaut (2020 + tri desc) côté HTML : on s'appuie
 # sur le rendu standard, puis le script force l'état via aria-pressed au 1er render.
 custom = f"window.__SATIS__ = {json.dumps(DATA, ensure_ascii=False)};\n" + CUSTOM
+GEOJSON = (ROOT / "scripts/viz/assets/fr_regions.geojson").read_text(encoding="utf-8")
 
 html = dc.page(
     title="Satisfaction", sub="Tableau de bord décisionnel",
     src="e-Satis 48h MCO 2020 (open data) · agrégats", active="satisfaction",
     besoins=besoins, slicers=slicers, kpis=kpis, charts=charts,
-    custom_script=custom,
+    custom_script=custom, geojson=GEOJSON,
     foot="Score global ajusté converti sur 10. Établissements sous le seuil de diffusion exclus "
-         "(cf. profiling P3). Prototype — sera reconstruit dans Power BI / Tableau sur Hive.",
+         "(cf. profiling P3). Carte = métropole. Prototype — sera reconstruit dans Power BI / Tableau sur Hive.",
 )
 OUT.write_text(html, encoding="utf-8")
 print(f"Écrit : {OUT} ({len(html)//1024} Ko) · national {DATA['national']}/10 · "

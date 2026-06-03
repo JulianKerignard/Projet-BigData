@@ -177,6 +177,12 @@ function pctFem(){const rows=rowsExcept();const t=total(rows);if(!t)return 0;
   const di=SPEC.dims['sexe'],mi=SPEC.measureIndex;
   const f=rows.filter(r=>r[di]==='F').reduce((s,r)=>s+r[mi],0);return Math.round(100*f/t);}
 
+// tooltip enrichi : valeur + part (%) sur le total du visuel
+function ttPct(sum){return Object.assign({},TT,{formatter:ps=>{
+  const a=Array.isArray(ps)?ps:[ps];
+  return a.map(p=>{const pct=sum?Math.round(100*p.value/sum):0;
+    return `${p.marker||''}${p.axisValueLabel||p.name}: <b>${fmt(p.value)}</b> (${pct}%)`;}).join('<br>');}});}
+
 // ---- rendu d'un visuel ----
 function renderChart(c){
   const ch=charts[c.id];
@@ -188,26 +194,29 @@ function renderChart(c){
   else if(c.sort==='asc')entries.sort((a,b)=>a[1]-b[1]);
   if(c.limit)entries=entries.slice(0,c.limit);
   const sel=state[c.dim];
+  const sum=entries.reduce((s,e)=>s+e[1],0);                       // total du visuel -> %
   const barColor=v=> sel? (v===sel?'#0b5cad':'#bcd6f0') : (c.color||'#118dff');
+  const pctLabel={show:!!c.showPct,position:c.kind==='barh'?'right':'top',
+    color:'#605e5c',fontSize:10,formatter:o=>sum?Math.round(100*o.value/sum)+'%':''};
 
   if(c.kind==='bar'){
-    ch.setOption({backgroundColor:'transparent',grid:{...GRID,top:'10%'},tooltip:TT,
+    ch.setOption({backgroundColor:'transparent',grid:{...GRID,top:'10%'},tooltip:ttPct(sum),
       xAxis:{type:'category',data:entries.map(e=>e[0]),...AX},
       yAxis:{type:'value',...AX,...SPL},
-      series:[{type:'bar',barWidth:'58%',data:entries.map(e=>({value:e[1],
+      series:[{type:'bar',barWidth:'58%',label:pctLabel,data:entries.map(e=>({value:e[1],
         itemStyle:{color:barColor(e[0]),borderRadius:[5,5,0,0]}})),
         emphasis:{focus:'series'}}]},true);
   } else if(c.kind==='barh'){
     const e2=[...entries].reverse();
-    ch.setOption({backgroundColor:'transparent',grid:{...GRID,left:'3%'},tooltip:TT,
+    ch.setOption({backgroundColor:'transparent',grid:{...GRID,left:'3%'},tooltip:ttPct(sum),
       xAxis:{type:'value',...AX,...SPL},
       yAxis:{type:'category',data:e2.map(e=>e[0]),...AX,
         axisLabel:{color:'#605e5c',width:140,overflow:'truncate',fontSize:11}},
-      series:[{type:'bar',data:e2.map(e=>({value:e[1],
+      series:[{type:'bar',label:pctLabel,data:e2.map(e=>({value:e[1],
         itemStyle:{color:barColor(e[0]),borderRadius:[0,5,5,0]}})),
         emphasis:{focus:'series'}}]},true);
   } else if(c.kind==='line'){
-    ch.setOption({backgroundColor:'transparent',grid:GRID,tooltip:TT,
+    ch.setOption({backgroundColor:'transparent',grid:GRID,tooltip:ttPct(sum),
       xAxis:{type:'category',data:entries.map(e=>e[0]),...AX,boundaryGap:false},
       yAxis:{type:'value',...AX,...SPL},
       series:[{type:'line',smooth:true,symbol:'circle',symbolSize:6,
@@ -216,26 +225,59 @@ function renderChart(c){
         areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,
           [{offset:0,color:(c.color||'#7048e8')+'40'},{offset:1,color:(c.color||'#7048e8')+'04'}])}}]},true);
   } else if(c.kind==='pie'){
-    ch.setOption({backgroundColor:'transparent',tooltip:TTI,
+    ch.setOption({backgroundColor:'transparent',
+      tooltip:Object.assign({},TTI,{formatter:'{b}: <b>{c}</b> ({d}%)'}),
       legend:{bottom:0,textStyle:{color:'#605e5c'}},
       series:[{type:'pie',radius:['48%','72%'],center:['50%','46%'],
         data:entries.map((e,i)=>({name:e[0],value:e[1],
           itemStyle:{color:sel?(e[0]===sel?PAL[i%PAL.length]:'#dde3ea'):PAL[i%PAL.length]}})),
         label:{color:'#605e5c'},emphasis:{focus:'self'}}]},true);
+  } else if(c.kind==='map'){
+    const data=entries.map(e=>({name:e[0],value:e[1]}));
+    const max=Math.max(1,...entries.map(e=>e[1]));
+    ch.setOption({backgroundColor:'transparent',
+      tooltip:Object.assign({},TTI,{formatter:p=>{
+        const pct=sum&&p.value?Math.round(100*p.value/sum):0;
+        return `${p.name}: <b>${p.value!=null?fmt(p.value):'n/d'}</b>`+(p.value?` (${pct}%)`:'');}}),
+      visualMap:{type:'continuous',min:0,max,left:8,bottom:8,calculable:true,
+        inRange:{color:['#e7f0fb','#7db4ec','#118dff','#0b5cad']},
+        textStyle:{color:'#605e5c',fontSize:10}},
+      series:[{type:'map',map:'france',roam:false,data,
+        itemStyle:{borderColor:'#fff',borderWidth:1,areaColor:'#f0f1f4'},
+        emphasis:{label:{show:false},itemStyle:{areaColor:'#fab005'}},
+        select:{itemStyle:{areaColor:'#0b5cad'},label:{show:false}}}]},true);
   }
+}
+
+// tendance du total vs année N-1 (si une année est filtrée et que N-1 existe)
+function trendNote(){
+  if(!('annee' in state) || state.annee===null) return null;
+  const di=SPEC.dims['annee'], mi=SPEC.measureIndex;
+  const y=parseInt(state.annee,10);
+  const sumYear=yy=>SPEC.facts.filter(r=>parseInt(r[di],10)===yy
+      && Object.entries(state).every(([d,v])=>v===null||d==='annee'||r[SPEC.dims[d]]===v))
+    .reduce((s,r)=>s+r[mi],0);
+  const cur=sumYear(y), prev=sumYear(y-1);
+  if(!prev) return null;
+  const d=Math.round(100*(cur-prev)/prev);
+  const arrow=d>0?'▲':(d<0?'▼':'=');
+  const col=d>0?'#13a10e':(d<0?'#d13438':'#605e5c');
+  return `<span style="color:${col}">${arrow} ${d>0?'+':''}${d}%</span> vs ${y-1}`;
 }
 
 function renderKpis(){
   SPEC.kpis.forEach(k=>{
     const el=document.getElementById(k.id); if(!el)return;
     let v='–', note=k.note||'';
-    if(k.calc==='total'){v=fmt(total(rowsExcept()));}
+    if(k.calc==='total'){v=fmt(total(rowsExcept()));
+      const tn=trendNote(); if(tn)note=tn;}
     else if(k.calc==='topDim'){const t=topOf(k.dim);v=t[0];
       const tot=total(rowsExcept());note=tot?Math.round(100*t[1]/tot)+' % '+(k.noteSuffix||''):'';}
     else if(k.calc==='pctFem'){v=pctFem()+' %';}
     else if(k.calc==='nDim'){v=Object.keys(groupSum(rowsExcept(),k.dim)).length;}
     el.querySelector('.val').textContent=v;
-    if(k.calc==='topDim'){el.querySelector('.note').textContent=note;}
+    if(k.calc==='total'){el.querySelector('.note').innerHTML=note;}
+    else if(k.calc==='topDim'){el.querySelector('.note').textContent=note;}
   });
 }
 
@@ -274,6 +316,7 @@ function render(){
 
 // ---- init ----
 function initDashboard(){
+  if(window.__FRGEO__){echarts.registerMap('france', window.__FRGEO__);}  // carte régions
   SPEC.charts.forEach(c=>{
     charts[c.id]=echarts.init(document.getElementById(c.id),'chu');
     if(c.clickable){
@@ -365,7 +408,7 @@ def besoins_html(besoins):
 
 
 def page(*, title, sub, src, active, besoins, slicers, kpis, charts, foot,
-         spec_json=None, narrative_js="", custom_script=None):
+         spec_json=None, narrative_js="", custom_script=None, geojson=None):
     """Assemble une page dashboard complète.
 
     Deux modes :
@@ -374,11 +417,15 @@ def page(*, title, sub, src, active, besoins, slicers, kpis, charts, foot,
     - custom : fournir `custom_script` (JS). Le thème ECharts + helpers (JS_THEME)
       restent disponibles ; le script gère son propre rendu. Pour les dashboards
       dont l'agrégation n'est pas une simple somme (ex. moyenne de score).
+
+    `geojson` (str JSON) : si fourni, injecté comme `window.__FRGEO__` et enregistré
+    comme carte 'france' (pour les visuels `kind:'map'`).
     """
+    geo = f"window.__FRGEO__ = {geojson};\n" if geojson else ""
     if custom_script is not None:
-        js = JS_THEME + "\n" + custom_script
+        js = geo + JS_THEME + "\n" + custom_script
     else:
-        js = (f"window.__SPEC__ = {spec_json};\n" + JS_THEME + JS_ENGINE
+        js = (geo + f"window.__SPEC__ = {spec_json};\n" + JS_THEME + JS_ENGINE
               + f"\nconst narrativeFns = {{ {narrative_js} }};\ninitDashboard();")
     return f"""<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
