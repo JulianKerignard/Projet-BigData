@@ -21,7 +21,7 @@ USE chu_entrepot;
 SET hive.exec.dynamic.partition       = true;
 SET hive.exec.dynamic.partition.mode  = nonstrict;
 SET hive.enforce.bucketing            = true;
-SET hive.query.results.cache.enabled  = false;   -- mesurer le coût réel à chaque run
+-- NB : pas de cache de résultats en Hive 2.3.2 (hive.query.results.cache.* = Hive 3.x).
 
 -- -----------------------------------------------------------------------------
 -- 1. V1 — table de RÉFÉRENCE non optimisée (ni partition ni bucket).
