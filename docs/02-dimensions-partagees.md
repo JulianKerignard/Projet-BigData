@@ -11,13 +11,18 @@ Croisement des dimensions avec les 4 faits du projet.
 | Dimension | Consultation | Hospitalisation | Satisfaction | Décès |
 |-----------|:---:|:---:|:---:|:---:|
 | Dim_Temps | ✅ | ✅ | ✅ | ✅ |
-| Dim_Etablissement | ✅ | ✅ | ✅ | — |
-| Dim_Geographie | ✅ | ✅ | ✅ | ✅ |
 | Dim_Patient | ✅ | ✅ | — | — |
-| Dim_Diagnostic | ✅ | ✅ | — | — |
 | Dim_Professionnel | ✅ | — | — | — |
+| Dim_Diagnostic | ✅ | ✅ | — | — |
+| Dim_Etablissement | — | ✅ | ✅ | — |
+| Dim_Geographie | — | — | ✅ | ✅ |
 
-Dimensions **réellement partagées** (≥ 2 faits) : Temps, Établissement, Géographie, Patient, Diagnostic. `Dim_Professionnel` est spécifique aux consultations.
+> Aligné sur le MCD `docs/mcd_constellation.png`.
+> - **Consultation × Établissement = —** : source consultations mono-établissement (B1 N/A).
+> - **Géographie** ne concerne que **Satisfaction** (B8) et **Décès** (B7) ; consultations/hospitalisations ne portent pas d'axe région direct.
+> - **Satisfaction × Patient = —** : source agrégée par établissement (pas de grain patient).
+
+Dimensions **réellement partagées** (≥ 2 faits) : Temps, Patient, Diagnostic, Établissement, Géographie. `Dim_Professionnel` est spécifique aux consultations.
 
 ## Détail des dimensions
 

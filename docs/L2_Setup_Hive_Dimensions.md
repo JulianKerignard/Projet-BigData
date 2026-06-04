@@ -28,6 +28,17 @@ Architecture **médaillon** sur deux bases Hive :
 
 > Cette convention **résout la divergence** constatée en review : Matthieu (satisfaction) utilisait déjà `staging.`/`chu_entrepot.`, le cleaning consultations utilisait des tables sans préfixe. **Action** : les jobs de cleaning doivent préfixer leurs tables (`staging.silver_consultation`, etc.) et écrire le fait final dans `chu_entrepot` en Parquet.
 
+### Règles techniques validées sur cluster (audit cleaning)
+
+- ⚠️ **Hive 2.x ne supporte pas les sous-requêtes scalaires en SELECT** (`SELECT (SELECT COUNT(*)…) AS x` → `Error 10249`). Pour les réconciliations de volumes, utiliser le pattern **`UNION ALL`** (corrigé dans les cleanings consultations / satisfaction / décès).
+- ✅ **Cleaning hospitalisation porté en HiveQL** : `sql/cleaning/hospitalisations_cleaning.hql` (anonymisation §2.2.A, clés conformes, Parquet) remplace la partie *cleaning* du pipeline PySpark de P2 — validé sur Hive (2 479 séjours chargés, patient pseudonymisé, jointures dim OK).
+- ✅ **Chaîne Gold rendue exécutable de bout en bout** (corrections audit) :
+  - `fait_consultation` est désormais **alimenté** (`consultations_cleaning.hql`, étape 4bis) — B2/B6 servis.
+  - `fait_satisfaction` : INSERT corrigé (surrogate `satisfaction_key`, **`geo_id`** ajouté, `PARTITION (annee)`) ; `rejets_satisfaction` repassé en **Parquet**.
+  - `dim_etablissement` (FINESS satisfaction + hospi) et `dim_diagnostic` (codes observés) **alimentées** (`04_chargement_dimensions.hql`) ; seules `dim_patient` / `dim_professionnel` restent des templates Bronze.
+  - `fait_satisfaction.geo_id` aligne **B8 (satisfaction/région)** sur **B7 (décès/région)** : même axe `dim_geographie`.
+- 🟠 **Reste à traiter avec P2** : les scripts PySpark `scripts/L2_01/03/05_*.py` (profiling + chargement + benchmark) sont **superseded** par les versions HiveQL (cleaning) et `sql/ddl/02_faits.hql` (DDL). À retirer/convertir avec Chloé pour le **benchmark L2** (partition/bucket déjà déclarés dans `02_faits.hql`).
+
 ---
 
 ## 2. Paramètres de session (00_setup_hive.hql)
@@ -73,13 +84,26 @@ Les **jobs d'alimentation** de ces dimensions (dédup + réconciliation des clé
 
 ## 5. Ordre d'exécution
 
+`dim_etablissement` doit précéder le chargement des faits (la satisfaction la joint et
+y résout `geo_id`) ; `dim_diagnostic` se dérive des faits → elle se peuple en relançant
+`04` après les cleanings (INSERT OVERWRITE idempotents). D'où l'ordre en deux phases :
+
 ```
-1. sql/ddl/00_setup_hive.hql              -- bases + paramètres
-2. sql/ddl/01_dimensions_partagees.hql    -- DDL des 6 dimensions (Gold, Parquet)
-3. (par fait) DDL + chargement des faits  -- fait_consultation, fait_hospitalisation, …
-4. Chargement des dimensions (jobs d'alimentation, réconciliation des clés)
-5. Chargement des faits (après les dimensions — intégrité référentielle)
+1. sql/ddl/00_setup_hive.hql                 -- bases + paramètres de session
+2. sql/ddl/01_dimensions_partagees.hql       -- DDL des 6 dimensions (Gold, Parquet)
+3. sql/ddl/02_faits.hql                      -- DDL des 4 faits (Gold, Parquet)
+4. sql/ddl/04_chargement_dimensions.hql      -- PHASE 1 : dim_temps, dim_geographie, dim_etablissement
+   (hive -hivevar annee_campagne=2020 -f ...)
+5. Cleanings = chargement des faits :
+   - consultations_cleaning.hql    (hivevar MASTER_KEY, SALT_SEED)   -> fait_consultation
+   - hospitalisations_cleaning.hql (hivevar MASTER_KEY, SALT_SEED)   -> fait_hospitalisation
+   - satisfaction_cleaning.hql     (hivevar annee_campagne=2020)     -> fait_satisfaction
+   - deces_cleaning.hql                                              -> fait_deces
+6. sql/ddl/04_chargement_dimensions.hql      -- relance => PHASE 2 : dim_diagnostic (codes observés)
 ```
+
+> `dim_patient` / `dim_professionnel` restent en templates commentés (section 5 du script) :
+> elles dépendent de l'ingestion Bronze PostgreSQL (tâches `[Px] Chargement` de l'équipe).
 
 ---
 

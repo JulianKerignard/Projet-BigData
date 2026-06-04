@@ -3,7 +3,7 @@
 > **Tâche** : `[P3] Modélisation Fait_Satisfaction` (869dfg11y)
 > **Auteur** : Matthieu (P3)
 > **Axe métier** : Satisfaction patients — **KPI 8** : taux de satisfaction par région sur 2020
-> **Prérequis** : [Dimensions partagées](../dimensions_partagees.md) (validées, figées)
+> **Prérequis** : [Dimensions partagées](02-dimensions-partagees.md) (validées, figées)
 
 ## 1. Contexte
 
@@ -104,7 +104,7 @@ region`) suffisent à couvrir le besoin — aucune autre dimension n'est nécess
 | **D-S3** | Mesure `note_satisfaction` en **DECIMAL(3,1) sur [0,10]**, obtenue par `score_all_rea_ajust / 10`. | Respecte la convention d'équipe (note 0–10, `DECIMAL(3,1)`). Le score natif e-Satis est sur 0–100 ; la normalisation `/10` est faite à l'ETL. *Alternative si l'équipe préfère l'échelle native : `DECIMAL(4,1)` sur [0,100].* |
 | **D-S4** | `region` **non dénormalisée** dans le fait. | Évite la redondance et les incohérences ; la région reste l'attribut conforme de `Dim_Etablissement` (cohérent avec les autres axes). |
 
-> **Écart à signaler à l'équipe** : la matrice en bus de `dimensions_partagees.md` (§4) liste
+> **Écart à signaler à l'équipe** : la matrice en bus de `02-dimensions-partagees.md` (§4) liste
 > encore `Fait_Satisfaction × Dim_Patient`. Compte tenu de la réalité de la source (agrégat par
 > établissement), **ce lien est abandonné** (D-S1). La matrice commune doit être mise à jour :
 > `Fait_Satisfaction` ne référence que `Dim_Temps` et `Dim_Etablissement`.

@@ -172,7 +172,7 @@ ci-dessous).
 
 ## 6. POINT OUVERT
 
-**Jointure FINESS** : la satisfaction porte le `finess_geo` (site). `dimensions_partagees.md`
+**Jointure FINESS** : la satisfaction porte le `finess_geo` (site). `02-dimensions-partagees.md`
 fixe `etab_id = finess_site` ; à confirmer que `Dim_Etablissement` est bien alimentée au grain
 **site** (et non juridique), faute de quoi R6 rejettera massivement. À valider avec P2
 (référentiel établissements) avant le chargement.
