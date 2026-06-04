@@ -24,29 +24,11 @@ SET hive.enforce.bucketing            = true;
 -- NB : pas de cache de résultats en Hive 2.3.2 (hive.query.results.cache.* = Hive 3.x).
 
 -- -----------------------------------------------------------------------------
--- 1. V1 — table de RÉFÉRENCE non optimisée (ni partition ni bucket).
---    La canonique étant déjà partitionnée, on fabrique une vraie baseline « plate »
---    où `annee` est une colonne ORDINAIRE -> aucun partition pruning possible.
--- -----------------------------------------------------------------------------
-DROP TABLE IF EXISTS bench_satisfaction_flat;
-CREATE TABLE bench_satisfaction_flat (
-  satisfaction_key  BIGINT,
-  date_id           INT,
-  etab_id           STRING,
-  geo_id            STRING,
-  note_satisfaction DECIMAL(3,1),
-  annee             INT
-)
-STORED AS PARQUET TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
-
-INSERT OVERWRITE TABLE bench_satisfaction_flat
-SELECT satisfaction_key, date_id, etab_id, geo_id, note_satisfaction, annee
-FROM fait_satisfaction;
-
--- -----------------------------------------------------------------------------
--- 2. V3 — partition (annee) + bucket 8 sur etab_id (clé de jointure dim_etablissement).
---    NB : le bucket map join complet suppose dim_etablissement AUSSI bucketée sur
---    etab_id ; ici le gain démontrable principal reste le partition pruning (R1).
+-- 1. bench_satisfaction_pb — partition (annee) + bucket 8 sur etab_id, 5 campagnes
+--    SYNTHÉTIQUES. fait_satisfaction = 1 campagne (2020) ; pour rendre le partition
+--    pruning mesurable on réplique sur 5 années (mêmes établissements -> jointures
+--    dim_etablissement/dim_geographie conservées). Volumétrie factice, jamais en KPI
+--    (la satisfaction réelle reste la campagne 2020 dans fait_satisfaction).
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS bench_satisfaction_pb;
 CREATE TABLE bench_satisfaction_pb (
@@ -61,8 +43,31 @@ CLUSTERED BY (etab_id) INTO 8 BUCKETS
 STORED AS PARQUET TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
 
 INSERT OVERWRITE TABLE bench_satisfaction_pb PARTITION (annee)
+SELECT
+  s.satisfaction_key + y.shift * 1000000000  AS satisfaction_key,
+  s.date_id          - y.shift * 10000       AS date_id,
+  s.etab_id, s.geo_id, s.note_satisfaction,
+  s.annee            - y.shift               AS annee
+FROM fait_satisfaction s
+LATERAL VIEW explode(array(0, 1, 2, 3, 4)) y AS shift;
+
+-- -----------------------------------------------------------------------------
+-- 2. bench_satisfaction_flat — mêmes lignes, SANS partition ni bucket (référence).
+-- -----------------------------------------------------------------------------
+DROP TABLE IF EXISTS bench_satisfaction_flat;
+CREATE TABLE bench_satisfaction_flat (
+  satisfaction_key  BIGINT,
+  date_id           INT,
+  etab_id           STRING,
+  geo_id            STRING,
+  note_satisfaction DECIMAL(3,1),
+  annee             INT
+)
+STORED AS PARQUET TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
+
+INSERT OVERWRITE TABLE bench_satisfaction_flat
 SELECT satisfaction_key, date_id, etab_id, geo_id, note_satisfaction, annee
-FROM fait_satisfaction;
+FROM bench_satisfaction_pb;
 
 -- =============================================================================
 -- 3. REQUÊTES (exécuter 3× chacune, relever "Time taken")
