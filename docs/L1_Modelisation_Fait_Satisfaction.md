@@ -65,11 +65,16 @@ Cardinalités (crow's foot) : `Dim (1) —— (N) Fait`.
 
 | Attribut | Type physique (Hive) | Rôle | Contrainte | Source / dérivation |
 |---|---|---|---|---|
-| `date_id` | INT | **FK** → `Dim_Temps` | format `YYYYMMDD` | date de recueil de la campagne |
-| `etab_id` | STRING | **FK** → `Dim_Etablissement` | = FINESS | colonne `finess` du fichier e-Satis |
+| `satisfaction_key` | BIGINT | **Clé technique (surrogate)** | unique | `ROW_NUMBER()` au chargement |
+| `date_id` | INT | **FK** → `Dim_Temps` | format `YYYY0101` (**grain annuel**) | année de campagne (la source n'a pas de date) |
+| `etab_id` | STRING | **FK** → `Dim_Etablissement` | = FINESS **site** | colonne `finess_geo` du fichier e-Satis |
+| `geo_id` | STRING | **FK** → `Dim_Geographie` | code région | région établissement → `ref_dept_region` (axe B8 = B7) |
 | `note_satisfaction` | DECIMAL(3,1) | **Mesure** | ∈ [0.0, 10.0] | `score_all_rea_ajust / 10` |
 
-- **Grain** : 1 ligne = 1 note de satisfaction pour 1 établissement à 1 date de recueil.
+- **Grain** : 1 ligne = 1 note de satisfaction pour 1 établissement et 1 **campagne annuelle**.
+- **Anonymisation** : la date est ramenée à l'**année de campagne** (`YYYY0101`), grain annuel —
+  aucune date fine n'est conservée, conformément à la règle « date avis → arrondir » de
+  [`Securite_Anonymisation_NFR.md`](Securite_Anonymisation_NFR.md) §2.2.D.
 - **Mesure** : `note_satisfaction` est **additive par moyenne** (on agrège avec `AVG`, jamais
   `SUM`) — c'est une note, pas un compteur.
 

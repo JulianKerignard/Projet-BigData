@@ -42,6 +42,8 @@ DATA*/
 
 # Exceptions : reference data committed in repo
 !scripts/ref/*.csv
+# Exception : gabarit de résultats benchmark (sans données sensibles)
+!scripts/benchmark/*.csv
 
 # KNIME — workflows & workspace personnels
 knime/
