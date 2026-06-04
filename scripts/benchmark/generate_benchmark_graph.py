@@ -34,6 +34,16 @@ CONFIG = {
         "order": ["R1_region_2020", "R2_region_all"],
         "labels": {"R1_region_2020": "R1\nrégion 2020", "R2_region_all": "R2\nrégion (toutes)"},
     },
+    "consultation": {
+        "csv": "consultation_results.csv",
+        "out": "benchmark_consultation.png",
+        "title": "Benchmark Consultations (B2/B6) — partition + bucketing sur Hive 2.3.2",
+        "io_base_mb": 0.049, "io_opt_mb": 0.025,  # mesuré via hdfs du (run 2026-06-04)
+        "io_label": "Données scannées — Q1 (Mo, hdfs du)",
+        "order": ["Q1_filter_year", "Q2_by_prof", "Q3_by_diag"],
+        "labels": {"Q1_filter_year": "Q1\nfiltre année", "Q2_by_prof": "Q2\npar prof (B6)",
+                   "Q3_by_diag": "Q3\npar diag (B2)"},
+    },
 }
 
 C_BASE, C_OPT = "#9aa7b4", "#2e7d9a"
