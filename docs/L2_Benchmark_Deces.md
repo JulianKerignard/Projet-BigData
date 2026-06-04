@@ -4,6 +4,7 @@
 > **Tâche ClickUp** : [869dfg1ne](https://app.clickup.com/t/869dfg1ne) — [P4] Benchmark Fait_Deces avant/après + graphes.
 > **Scripts** : [`sql/benchmark/00_create_bench_deces.hql`](../sql/benchmark/00_create_bench_deces.hql), [`01_benchmark_deces_queries.hql`](../sql/benchmark/01_benchmark_deces_queries.hql), [`scripts/benchmark/run_benchmark_deces.sh`](../scripts/benchmark/run_benchmark_deces.sh).
 > **Résultats bruts** : [`scripts/benchmark/benchmark_deces_results.csv`](../scripts/benchmark/benchmark_deces_results.csv).
+> **Figure** : [`scripts/benchmark/benchmark_deces.png`](../scripts/benchmark/benchmark_deces.png) (générée par `scripts/benchmark/generate_graph_deces.py`).
 > **Date d'exécution** : 2026-06-04.
 
 ---
@@ -60,6 +61,12 @@
 > ⚠️ **Dispersion** : avec n=3 et un overhead Hive ~2 s, les écarts (0.96×–1.12×) sont
 > **dans le bruit de mesure** et non significatifs (ex. le « 1.12× » de Q4 tient à un seul
 > run lent à 2.925 s). Le runner reporte désormais moyenne + min/max.
+
+![Benchmark Décès — temps wall-clock vs I/O scanné](../scripts/benchmark/benchmark_deces.png)
+
+*Figure : (A) le temps wall-clock baseline vs optimisée est à **parité** (barres = min/max) ;
+(B) mais l'I/O réellement scanné est **divisé par 5** grâce au partition pruning (preuve EXPLAIN).
+C'est le message clé : le gain est structurel, pas visible en wall-clock à cette échelle.*
 
 ## 3. Analyse — pourquoi les gains wall-time sont faibles
 
@@ -165,5 +172,5 @@ bash scripts/benchmark/run_benchmark_deces.sh 3
 ### Tâche `869dfg1ne` (Benchmark avant/après)
 - [x] Tables bench dédiées `bench_deces_flat` / `bench_deces_pb` (Gold canonique intacte)
 - [x] 4 requêtes types × 3 runs sur les 2 tables
-- [x] Résultats CSV + dump EXPLAIN produits (`scripts/benchmark/`)
+- [x] Résultats CSV + dump EXPLAIN + **graphe de synthèse** (`scripts/benchmark/benchmark_deces.png`)
 - [x] Analyse honnête des gains observés vs attendus (§3, §4) + reco prod (§5)
