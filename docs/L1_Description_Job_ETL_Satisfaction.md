@@ -82,15 +82,16 @@ shred -u /tmp/satisfaction_2020.csv /tmp/satisfaction_2020_utf8.csv
 La table externe de staging et l'`INSERT` de chargement sont détaillés dans
 [`etl/load_satisfaction.sql`](../etl/load_satisfaction.sql) (Livrable 2). Logique :
 
-1. **Parsing** via `EXTERNAL TABLE` pointant sur `/staging/satisfaction/`.
-2. **Sélection minimale (anonymisation §2.2.D)** : on ne projette **que** `finess`, `region`,
-   `date_recueil` et le score numérique. Tout champ de **commentaire / avis en texte libre** est
-   **écarté** (jamais ingéré dans l'entrepôt) — la satisfaction est réduite à sa mesure chiffrée.
-3. **Arrondi de la date au mois (anonymisation §2.2.D)** : `date_id` est ramené au **1er du
-   mois** (`YYYYMM01`) ; aucune date au jour n'est conservée.
-4. **Validation** : ne garder que les notes dans `[0, 10]` après normalisation `/10`.
-5. **Lookup `Dim_Etablissement`** : `etab_id` (= FINESS) doit exister dans la dimension — sinon
-   la ligne part en rejet.
+1. **Parsing** via `EXTERNAL TABLE` pointant sur `/chu/staging/satisfaction/annee=YYYY/`.
+2. **Sélection minimale (anonymisation §2.2.D)** : on ne projette **que** `finess_geo` (clé site),
+   `region` (contrôle de cohérence) et le score numérique. La source ne contient **aucune date**
+   ni aucun **commentaire / avis en texte libre** — la satisfaction est réduite à sa mesure chiffrée.
+3. **Dérivation de la date (anonymisation §2.2.D)** : la source n'ayant pas de colonne date, la
+   période est l'**année de campagne** (nom de fichier) → `date_id = YYYY0101` (grain annuel, déjà
+   plus grossier qu'un arrondi au mois).
+4. **Validation** : ne garder que les scores bruts dans `[0, 100]`, normalisés `/10` → note `[0, 10]`.
+5. **Lookup `Dim_Etablissement`** : `etab_id` (= `finess_geo`, FINESS **site**) doit exister dans la
+   dimension — sinon la ligne part en rejet.
 6. **`INSERT INTO fait_satisfaction`** des lignes valides.
 
 ## 6. Gestion d'erreurs

@@ -21,8 +21,8 @@ CREATE TABLE fait_satisfaction_pb (
 )
 PARTITIONED BY (annee INT)
 CLUSTERED BY (etab_id) INTO 8 BUCKETS
-STORED AS ORC
-TBLPROPERTIES ('orc.compress' = 'SNAPPY');
+STORED AS PARQUET
+TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
 
 -- -----------------------------------------------------------------------------
 -- 2. Activation + rechargement (depuis la table partitionnée)

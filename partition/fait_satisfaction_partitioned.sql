@@ -18,8 +18,8 @@ CREATE TABLE fait_satisfaction_part (
   note_satisfaction DECIMAL(3,1)
 )
 PARTITIONED BY (annee INT)
-STORED AS ORC
-TBLPROPERTIES ('orc.compress' = 'SNAPPY');
+STORED AS PARQUET
+TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
 
 -- -----------------------------------------------------------------------------
 -- 2. Rechargement avec partition dynamique (annee dérivée de date_id)

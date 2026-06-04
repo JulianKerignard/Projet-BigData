@@ -10,13 +10,13 @@ USE chu_entrepot;
 DROP TABLE IF EXISTS fait_satisfaction;
 
 CREATE TABLE fait_satisfaction (
-  date_id           INT           COMMENT 'FK -> dim_temps (YYYYMM01, date arrondie au mois - anonymisation)',
-  etab_id           STRING        COMMENT 'FK -> dim_etablissement (FINESS)',
+  date_id           INT           COMMENT 'FK -> dim_temps (YYYY0101, grain annuel = annee de campagne ; la source na pas de date - anonymisation §2.2.D)',
+  etab_id           STRING        COMMENT 'FK -> dim_etablissement (FINESS geographique / site = finess_geo)',
   note_satisfaction DECIMAL(3,1)  COMMENT 'Note de satisfaction normalisee 0-10 (score e-Satis / 10)'
 )
-COMMENT 'Fait Satisfaction patients - grain : 1 note par etablissement et par mois de recueil'
-STORED AS ORC
-TBLPROPERTIES ('orc.compress' = 'SNAPPY');
+COMMENT 'Fait Satisfaction patients - grain : 1 note par etablissement et par campagne annuelle'
+STORED AS PARQUET
+TBLPROPERTIES ('parquet.compression' = 'SNAPPY');
 
 -- Vérification (Definition of Done)
 DESCRIBE FORMATTED fait_satisfaction;
