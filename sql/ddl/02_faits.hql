@@ -50,13 +50,16 @@ STORED AS PARQUET;
 
 -- -----------------------------------------------------------------------------
 -- Fait_Satisfaction — grain : une ligne = un établissement × campagne (B8)
--- Région obtenue par jointure dim_etablissement (pas de patient : source agrégée).
+-- geo_id (région) porté sur le fait : B7 (décès/région) et B8 (satisfaction/région)
+-- partagent ainsi le MÊME axe dim_geographie -> indicateurs régionaux comparables.
+-- (pas de patient : source déjà agrégée par établissement).
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS fait_satisfaction;
 CREATE TABLE fait_satisfaction (
   satisfaction_key   BIGINT,
   date_id            INT,           -- FK dim_temps (AAAA0101, grain annuel)
-  etab_id            STRING,        -- FK dim_etablissement (-> région via la dimension)
+  etab_id            STRING,        -- FK dim_etablissement
+  geo_id             STRING,        -- FK dim_geographie (code région) -> axe B8 = axe B7
   note_satisfaction  DECIMAL(3,1)   -- mesure (score /10)
 )
 PARTITIONED BY (annee INT)
