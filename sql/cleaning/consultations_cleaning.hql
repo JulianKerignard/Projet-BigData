@@ -55,7 +55,8 @@ CREATE TABLE patient_mapping_secure (
   id_patient_pseudo   STRING,
   salt_patient        STRING,
   creation_date       TIMESTAMP
-);
+)
+STORED AS PARQUET;
 -- NB : en production cette table est chiffrée (AES-256 at-rest) et son accès
 --      est restreint au rôle ADMIN via les ACL Hive/Ranger (cf. §1.2, §4.2).
 
@@ -87,7 +88,8 @@ FROM (
 --   - id_patient en clair JAMAIS propagé : seul id_patient_pseudo subsiste
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS silver_consultation;
-CREATE TABLE silver_consultation AS
+CREATE TABLE silver_consultation
+STORED AS PARQUET AS
 SELECT
   ROW_NUMBER() OVER (ORDER BY c.num_consultation)        AS consultation_key,  -- surrogate
   m.id_patient_pseudo,                                   -- pseudonymisé (plus d'ID clair)
@@ -109,8 +111,12 @@ WHERE year(CAST(c.date_consultation AS DATE)) BETWEEN 2015 AND 2023;
 -- ---------------------------------------------------------------------
 -- Étape 5 : contrôles qualité + CONFORMITÉ (doivent tous renvoyer 0)
 -- ---------------------------------------------------------------------
--- Doublons résiduels
+-- Doublons résiduels sur la clé NATURELLE (avant suppression de num_consultation)
 SELECT COUNT(*) - COUNT(DISTINCT num_consultation) AS doublons_residuels
+FROM silver_consultation_valid;
+
+-- Intégrité du surrogate : consultation_key doit être unique dans le fait
+SELECT COUNT(*) - COUNT(DISTINCT consultation_key) AS surrogate_doublons
 FROM silver_consultation;
 
 -- Durées négatives résiduelles (doit être 0 par construction)
@@ -124,6 +130,7 @@ FROM silver_consultation
 WHERE id_patient_pseudo IS NULL OR length(id_patient_pseudo) <> 64;
 
 -- Réconciliation des volumes (écart = lignes rejetées par R2/R4)
-SELECT
-  (SELECT COUNT(*) FROM bronze_consultation)  AS bronze,
-  (SELECT COUNT(*) FROM silver_consultation)  AS silver;
+-- (UNION ALL : Hive 2.x ne supporte pas les sous-requêtes scalaires en SELECT)
+SELECT 'bronze' AS etape, COUNT(*) AS lignes FROM bronze_consultation
+UNION ALL
+SELECT 'silver', COUNT(*) FROM silver_consultation;

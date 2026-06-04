@@ -28,6 +28,11 @@ Architecture **médaillon** sur deux bases Hive :
 
 > Cette convention **résout la divergence** constatée en review : Matthieu (satisfaction) utilisait déjà `staging.`/`chu_entrepot.`, le cleaning consultations utilisait des tables sans préfixe. **Action** : les jobs de cleaning doivent préfixer leurs tables (`staging.silver_consultation`, etc.) et écrire le fait final dans `chu_entrepot` en Parquet.
 
+### Règles techniques validées sur cluster (audit cleaning)
+
+- ⚠️ **Hive 2.x ne supporte pas les sous-requêtes scalaires en SELECT** (`SELECT (SELECT COUNT(*)…) AS x` → `Error 10249`). Pour les réconciliations de volumes, utiliser le pattern **`UNION ALL`** (corrigé dans les cleanings consultations / satisfaction / décès).
+- 🔴 **Action restante (coordination P2)** : le pipeline hospitalisation (`scripts/L2_01…`, `L2_03…`, `L2_05…`) est en **PySpark**, hors du stack décidé « HiveQL sans Spark ». À convertir en HiveQL avec Chloé (les règles de nettoyage sont bonnes, seule la techno diverge).
+
 ---
 
 ## 2. Paramètres de session (00_setup_hive.hql)
