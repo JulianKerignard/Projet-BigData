@@ -109,6 +109,25 @@ JOIN patient_mapping_secure m
 WHERE year(CAST(c.date_consultation AS DATE)) BETWEEN 2015 AND 2023;
 
 -- ---------------------------------------------------------------------
+-- Étape 4bis : chargement Gold fait_consultation (B2 par diagnostic, B6 par
+--   professionnel). DDL : sql/ddl/02_faits.hql. Mapping Silver -> Gold :
+--     consultation_key (surrogate) | date_id (AAAAMMJJ) | patient_id (pseudonymisé)
+--     prof_id | diag_id | nb_consultation = 1 | duree_minutes | annee (partition)
+--   Partition dynamique (les consultations couvrent 2015-2023).
+-- ---------------------------------------------------------------------
+INSERT OVERWRITE TABLE chu_entrepot.fait_consultation PARTITION (annee)
+SELECT
+  consultation_key,
+  CAST(date_format(date_consultation, 'yyyyMMdd') AS INT)   AS date_id,
+  id_patient_pseudo                                         AS patient_id,
+  id_prof_sante                                             AS prof_id,
+  code_diag                                                 AS diag_id,
+  1                                                         AS nb_consultation,
+  duree_minutes,
+  year(date_consultation)                                   AS annee
+FROM silver_consultation;
+
+-- ---------------------------------------------------------------------
 -- Étape 5 : contrôles qualité + CONFORMITÉ (doivent tous renvoyer 0)
 -- ---------------------------------------------------------------------
 -- Doublons résiduels sur la clé NATURELLE (avant suppression de num_consultation)
@@ -133,4 +152,6 @@ WHERE id_patient_pseudo IS NULL OR length(id_patient_pseudo) <> 64;
 -- (UNION ALL : Hive 2.x ne supporte pas les sous-requêtes scalaires en SELECT)
 SELECT 'bronze' AS etape, COUNT(*) AS lignes FROM bronze_consultation
 UNION ALL
-SELECT 'silver', COUNT(*) FROM silver_consultation;
+SELECT 'silver', COUNT(*) FROM silver_consultation
+UNION ALL
+SELECT 'gold',   SUM(nb_consultation) FROM chu_entrepot.fait_consultation;
