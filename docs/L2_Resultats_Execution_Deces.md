@@ -3,7 +3,7 @@
 > **Livrable** : preuve d'exécution pour la section "Modèle physique & chargement" du rapport L2.
 > **Tâches ClickUp clôturées** : [869dfg1jp](https://app.clickup.com/t/869dfg1jp) DDL Fait_Deces · [869dfg1k6](https://app.clickup.com/t/869dfg1k6) Chargement Fait_Deces + vérification.
 > **Date d'exécution** : 2026-06-04.
-> **Périmètre** : KPI 8 — Nombre de décès par région en 2019.
+> **Périmètre** : B7 — Nombre de décès par région en 2019.
 
 ---
 
@@ -25,7 +25,7 @@
 | `dept_to_region.csv` (référentiel) | 2.4 Ko, 108 mappings |
 | Périmètre filtré pour cette exécution | `substr(date_deces,1,4) = '2019'` → 616 257 lignes attendues |
 
-> **Note pratique** : le script canonique `sql/cleaning/deces_cleaning.hql` filtre sur `>= 2000` (~12 M lignes). Pour cette exécution dev (8 Go RAM container, MapReduce local), une variante 2019-only a été utilisée — résultat fonctionnel identique pour le KPI 8. La version full-historique reste opérationnelle sur cluster prod dimensionné.
+> **Note pratique** : le script canonique `sql/cleaning/deces_cleaning.hql` filtre sur `>= 2000` (~12 M lignes). Pour cette exécution dev (8 Go RAM container, MapReduce local), une variante 2019-only a été utilisée — résultat fonctionnel identique pour le B7. La version full-historique reste opérationnelle sur cluster prod dimensionné.
 
 ## 3. Chaîne exécutée
 
@@ -87,7 +87,7 @@ hdfs:/chu/gold/fait_deces/annee=2019/
 | Lignes rejetées par RLIKE date | 20 (≈ 0.003 %) | < 0.5 % ✅ |
 | % `geo_id = 'INCONNU'` | **0.88 %** (5 420 / 616 237) | < 1 % ✅ |
 
-### 5.2 KPI 8 — Décès par région en 2019 (top 5)
+### 5.2 B7 — Décès par région en 2019 (top 5)
 
 | `region` | `nb_deces` |
 |---|---|
@@ -125,7 +125,7 @@ hdfs:/chu/gold/fait_deces/annee=2019/
 | # | Anomalie | Impact | Action |
 |---|---|---|---|
 | 1 | `scripts/ref/dept_to_region.csv` en encodage Latin-1 → `Î`/`ô`/`é` rendus `?` dans `dim_geographie` | Cosmétique sur affichage région | Convertir le CSV en UTF-8 et recharger `dim_geographie` |
-| 2 | Tentative d'exécution full-historique (>= 2000, ~12 M lignes) → OOM `hive-server` à 50 % du reducer | Pas bloquant pour le KPI 8 | Augmenter heap JVM hive-server, ou exécuter sur cluster prod |
+| 2 | Tentative d'exécution full-historique (>= 2000, ~12 M lignes) → OOM `hive-server` à 50 % du reducer | Pas bloquant pour le B7 | Augmenter heap JVM hive-server, ou exécuter sur cluster prod |
 | 3 | Skew bucket × 35 sur `geo_id` (3 régions dominantes) | Performance non-uniforme des requêtes par région | À mesurer dans le benchmark L2, envisager bucketing composite |
 
 ## 7. Definition of Done — clôture
