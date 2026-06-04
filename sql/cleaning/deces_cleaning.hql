@@ -55,34 +55,25 @@ LOCATION '/chu/ref/dept_region'
 TBLPROPERTIES ('skip.header.line.count' = '1');
 
 -- -----------------------------------------------------------------------------
--- 1. DDL du fait (Gold) : Parquet, partitionné par année
+-- 1. Le DDL de fait_deces est défini dans sql/ddl/02_faits.hql (source unique).
+--    Exécuter 02_faits.hql AVANT ce script. On charge directement la table.
 --    sexe + tranche_age = dimensions dégénérées (pas de patient identifié).
 -- -----------------------------------------------------------------------------
 USE chu_entrepot;
-DROP TABLE IF EXISTS fait_deces;
-CREATE TABLE fait_deces (
-  deces_key    BIGINT,
-  date_id      INT,        -- FK dim_temps (AAAAMMJJ)
-  geo_id       STRING,     -- FK dim_geographie (code région)
-  sexe         STRING,     -- H / F (dégénéré)
-  tranche_age  STRING,     -- dégénéré
-  nb_deces     INT         -- mesure (= 1)
-)
-PARTITIONED BY (annee INT)
-STORED AS PARQUET;
 
 -- -----------------------------------------------------------------------------
 -- 2. Silver -> Gold : anonymisation + dérivation région + chargement
 --    R1  : date_deces invalide / hors plage (>= 2000) -> rejet
 --    R2  : dérivation département (DOM = 3 car., Corse 2A/2B, sinon 2 car.)
 --    §2.2.B : nom/prenom/numero_acte JAMAIS sélectionnés
+--    sexe codé M/F (convention conforme à dim_patient — cohérence inter-faits)
 -- -----------------------------------------------------------------------------
 INSERT OVERWRITE TABLE fait_deces PARTITION (annee)
 SELECT
   ROW_NUMBER() OVER (ORDER BY d.date_deces, d.code_lieu_deces)  AS deces_key,
   CAST(regexp_replace(d.date_deces, '-', '') AS INT)            AS date_id,
   COALESCE(r.code_region, 'INCONNU')                            AS geo_id,
-  CASE d.sexe WHEN '1' THEN 'H' WHEN '2' THEN 'F' ELSE '?' END  AS sexe,
+  CASE d.sexe WHEN '1' THEN 'M' WHEN '2' THEN 'F' ELSE '?' END  AS sexe,
   -- tranche d'âge (âge = année décès - année naissance, arrondi §2.2.B)
   CASE
     WHEN NOT d.date_naissance RLIKE '^[0-9]{4}' THEN 'Inconnu'
