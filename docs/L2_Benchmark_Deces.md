@@ -4,7 +4,7 @@
 > **Tâche ClickUp** : [869dfg1ne](https://app.clickup.com/t/869dfg1ne) — [P4] Benchmark Fait_Deces avant/après + graphes.
 > **Scripts** : [`sql/benchmark/00_create_bench_deces.hql`](../sql/benchmark/00_create_bench_deces.hql), [`01_benchmark_deces_queries.hql`](../sql/benchmark/01_benchmark_deces_queries.hql), [`scripts/benchmark/run_benchmark_deces.sh`](../scripts/benchmark/run_benchmark_deces.sh).
 > **Résultats bruts** : [`scripts/benchmark/benchmark_deces_results.csv`](../scripts/benchmark/benchmark_deces_results.csv).
-> **Figure** : [`scripts/benchmark/benchmark_deces.png`](../scripts/benchmark/benchmark_deces.png) (générée par `scripts/benchmark/generate_graph_deces.py`).
+> **Figure** : [`scripts/benchmark/benchmark_deces.png`](../scripts/benchmark/benchmark_deces.png) (générée par `scripts/benchmark/generate_benchmark_graph.py deces`).
 > **Date d'exécution** : 2026-06-04.
 
 ---

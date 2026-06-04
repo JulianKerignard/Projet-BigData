@@ -1,7 +1,13 @@
-requete,version,config,run1_s,run2_s,run3_s,moyenne_s,gain_pct_vs_v1,exemple
-R1_region_2020,V1,flat (ni partition ni bucket),,,,,,satisfaction moyenne par region 2020
-R1_region_2020,V2,partition annee,,,,,,satisfaction moyenne par region 2020
-R1_region_2020,V3,partition + bucket etab_id,,,,,,satisfaction moyenne par region 2020
-R2_region_all,V1,flat (ni partition ni bucket),,,,,,satisfaction moyenne par region toutes campagnes
-R2_region_all,V2,partition annee,,,,,,satisfaction moyenne par region toutes campagnes
-R2_region_all,V3,partition + bucket etab_id,,,,,,satisfaction moyenne par region toutes campagnes
+query,variant,run,duration_sec
+R1_region_2020,base,1,8.013
+R1_region_2020,base,2,8.088
+R1_region_2020,base,3,7.976
+R1_region_2020,opt,1,8.472
+R1_region_2020,opt,2,8.201
+R1_region_2020,opt,3,7.992
+R2_region_all,base,1,1.807
+R2_region_all,base,2,1.845
+R2_region_all,base,3,1.788
+R2_region_all,opt,1,1.712
+R2_region_all,opt,2,1.902
+R2_region_all,opt,3,1.875
