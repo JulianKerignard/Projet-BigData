@@ -3,16 +3,16 @@
 [P3] Benchmark Satisfaction — calcul des moyennes / gains et génération du graphe.
 
 Usage :
-    python3 benchmarks/generate_graph.py
+    python3 scripts/benchmark/generate_graph.py
 
-Lit  benchmarks/satisfaction_results.csv (rempli avec les 3 mesures par cas issues de
-hive -f benchmarks/satisfaction_benchmark.sql), recalcule moyenne_s + gain_pct_vs_v1,
-réécrit le CSV, et produit benchmarks/satisfaction_graph.png (bar chart comparatif).
+Lit  scripts/benchmark/satisfaction_results.csv (rempli avec les 3 mesures par cas issues
+de  hive -f sql/benchmark/satisfaction_benchmark.sql), recalcule moyenne_s + gain_pct_vs_v1,
+réécrit le CSV, et produit scripts/benchmark/satisfaction_graph.png (bar chart comparatif).
 
-Dépendance optionnelle : matplotlib (pour le PNG). Sans elle, le script met quand même
-le CSV à jour et affiche un tableau ASCII.
+Robuste : si le CSV ne contient encore aucune mesure (gabarit), le script l'indique et
+s'arrête proprement (pas de crash). matplotlib est une dépendance optionnelle (PNG).
 """
-import csv, os, sys
+import csv, os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CSV = os.path.join(HERE, "satisfaction_results.csv")
@@ -25,6 +25,10 @@ def fnum(x):
 
 
 def main():
+    if not os.path.exists(CSV):
+        print(f"[!] CSV introuvable : {CSV}. Lance d'abord le benchmark SQL et reporte les temps.")
+        return
+
     with open(CSV, newline="") as fh:
         rows = list(csv.DictReader(fh))
 
@@ -62,7 +66,7 @@ def main():
               f"{str(r['moyenne_s']):>8} {str(r['gain_pct_vs_v1']):>7}")
 
     if not any(r["moyenne_s"] != "" for r in rows):
-        print("\n[!] Aucune mesure dans le CSV — remplis run1_s/run2_s/run3_s puis relance.")
+        print("\n[!] Aucune mesure dans le CSV (gabarit) — remplis run1_s/run2_s/run3_s puis relance.")
         return
 
     # 5. graphe
@@ -70,9 +74,10 @@ def main():
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        import numpy as np
     except ImportError:
-        print("\n[i] matplotlib absent : CSV mis à jour, PNG non généré.")
-        print("    pip install matplotlib  (ou tracer le graphe depuis le CSV dans Excel).")
+        print("\n[i] matplotlib/numpy absent : CSV mis à jour, PNG non généré.")
+        print("    pip install matplotlib numpy  (ou tracer le graphe depuis le CSV).")
         return
 
     requetes = sorted({r["requete"] for r in rows})
@@ -82,7 +87,6 @@ def main():
                          if r["requete"] == q and r["version"] == v), None)
                 for v in versions} for q in requetes}
 
-    import numpy as np
     x = np.arange(len(requetes)); width = 0.25
     fig, ax = plt.subplots(figsize=(9, 5))
     for i, v in enumerate(versions):

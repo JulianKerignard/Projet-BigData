@@ -82,7 +82,7 @@ shred -u /tmp/satisfaction_2020.csv /tmp/satisfaction_2020_utf8.csv
 La table externe de staging et l'`INSERT` de chargement sont détaillés dans
 [`etl/load_satisfaction.sql`](../etl/load_satisfaction.sql) (Livrable 2). Logique :
 
-1. **Parsing** via `EXTERNAL TABLE` pointant sur `/chu/staging/satisfaction/annee=YYYY/`.
+1. **Parsing** via `EXTERNAL TABLE` pointant sur `/staging/satisfaction/annee=YYYY/`.
 2. **Sélection minimale (anonymisation §2.2.D)** : on ne projette **que** `finess_geo` (clé site),
    `region` (contrôle de cohérence) et le score numérique. La source ne contient **aucune date**
    ni aucun **commentaire / avis en texte libre** — la satisfaction est réduite à sa mesure chiffrée.
@@ -114,7 +114,7 @@ Alignement avec [`Securite_Anonymisation_NFR.md`](Securite_Anonymisation_NFR.md)
 |---|---|
 | Identifiant patient → pseudonymiser | **Sans objet** : la source e-Satis est agrégée par établissement, aucun identifiant patient n'est ingéré (cf. modélisation D-S1). |
 | Notes textuelles → résumer | Les commentaires en **texte libre sont exclus** ; seul le score chiffré est conservé (§5.2). |
-| Date avis → arrondir au mois | `date_id` ramené au **1er du mois** `YYYYMM01` (§5.3). |
+| Date avis → arrondir | aucune date dans la source : `date_id` = **année de campagne** `YYYY0101` (grain annuel, plus grossier qu'un arrondi au mois) (§5.3). |
 | Établissement → conserver | `etab_id` (FINESS) conservé comme axe d'analyse. |
 | Chiffrement en transit (TLS 1.3) | Récupération en **FTPS/SFTP**, credentials hors ligne de commande (§4). |
 | Accès staging restreint | `/staging/satisfaction/` en `700` (ETL/Admin), copies locales `shred` après usage (§4). |
