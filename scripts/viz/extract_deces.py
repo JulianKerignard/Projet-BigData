@@ -51,6 +51,8 @@ def build_sql():
 CREATE TABLE dr(dept VARCHAR, region VARCHAR);
 INSERT INTO dr VALUES {values};
 
+-- Agrégation EN STREAMING : f ne contient que ~13 k lignes agrégées (pas les 25 M
+-- par-ligne) -> pic RAM /4 (la lecture CSV reste en flux multi-thread).
 CREATE TABLE f AS
 WITH base AS (
   SELECT
@@ -65,33 +67,31 @@ WITH base AS (
   FROM read_csv('{src}', header=true, sep=',', quote='"',
                 all_varchar=true, ignore_errors=true)
   WHERE regexp_matches(date_deces, '^[0-9]{{4}}')
+),
+enr AS (
+  SELECT
+    base.annee,
+    COALESCE(dr.region, 'Autre / étranger') AS region,
+    base.sx,
+    CASE
+      WHEN an_naiss IS NULL OR (annee - an_naiss) < 0 OR (annee - an_naiss) > 120 THEN 'Inconnu'
+      WHEN (annee - an_naiss) < 20 THEN '0-19'
+      WHEN (annee - an_naiss) < 40 THEN '20-39'
+      WHEN (annee - an_naiss) < 60 THEN '40-59'
+      WHEN (annee - an_naiss) < 75 THEN '60-74'
+      WHEN (annee - an_naiss) < 85 THEN '75-84'
+      ELSE '85+'
+    END AS age
+  FROM base LEFT JOIN dr ON dr.dept = base.dept
 )
-SELECT
-  base.annee,
-  COALESCE(dr.region, 'Autre / étranger') AS region,
-  base.sx,
-  CASE
-    WHEN an_naiss IS NULL OR (annee - an_naiss) < 0 OR (annee - an_naiss) > 120 THEN 'Inconnu'
-    WHEN (annee - an_naiss) < 20 THEN '0-19'
-    WHEN (annee - an_naiss) < 40 THEN '20-39'
-    WHEN (annee - an_naiss) < 60 THEN '40-59'
-    WHEN (annee - an_naiss) < 75 THEN '60-74'
-    WHEN (annee - an_naiss) < 85 THEN '75-84'
-    ELSE '85+'
-  END AS age
-FROM base LEFT JOIN dr ON dr.dept = base.dept;
+SELECT annee, region, sx, age, count(*) AS n
+FROM enr
+GROUP BY annee, region, sx, age;
 
--- ORDER BY dans chaque agrégat -> sortie DÉTERMINISTE (pas de churn git à la régénération)
-SELECT json_object(
-  'trend',   (SELECT json_group_array(json_array(annee, n) ORDER BY annee)
-                FROM (SELECT annee, count(*) n FROM f GROUP BY annee)),
-  'regions', (SELECT json_group_array(region ORDER BY region)
-                FROM (SELECT DISTINCT region FROM f)),
-  'facts',   (SELECT json_group_array(json_array(annee, region, sx, age, n)
-                                      ORDER BY annee, region, sx, age)
-                FROM (SELECT annee, region, sx, age, count(*) n
-                      FROM f GROUP BY annee, region, sx, age))
-);
+-- f est déjà agrégée (~13 k lignes) : on émet une ligne JSON par fait, et
+-- Python assemble + trie (déterministe, et évite la macro json_group_array
+-- qui n'accepte pas ORDER BY).
+SELECT json_array(annee, region, sx, age, n) FROM f;
 """
 
 
@@ -100,10 +100,17 @@ def main():
                          input=build_sql(), capture_output=True, text=True)
     if res.returncode != 0:
         sys.exit("DuckDB a échoué :\n" + res.stderr)
-    out = res.stdout.strip()
-    if not out.startswith("{"):  # robustesse : isoler l'objet JSON
-        out = out[out.find("{"): out.rfind("}") + 1]
-    data = json.loads(out)  # valide le JSON
+    # DuckDB émet une ligne JSON [annee, region, sexe, age, n] par fait agrégé.
+    facts = [json.loads(l) for l in res.stdout.splitlines() if l.startswith("[")]
+    facts.sort(key=lambda r: (r[0], r[1], r[2], r[3]))   # ordre déterministe
+    trend = {}
+    for a, r, s, g, n in facts:
+        trend[a] = trend.get(a, 0) + n
+    data = {
+        "trend":   [[a, trend[a]] for a in sorted(trend)],
+        "regions": sorted({r for _, r, _, _, _ in facts}),
+        "facts":   facts,
+    }
     OUT.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
     y2019 = sum(n for a, r, s, g, n in data["facts"] if a == 2019)
