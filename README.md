@@ -15,14 +15,29 @@ This project implements a scalable, secure data warehouse for healthcare data an
 ## Project Structure
 
 ```
-├── docs/                    # Documentation
-│   ├── Securite_Anonymisation_NFR.md
-│   └── ...
-├── scripts/                 # ETL & deployment scripts
-├── sql/                     # Database schemas & queries
-├── config/                  # Configuration files
+├── docs/            # Rapports & documentation (L1, L2, MCD, sécurité/RGPD)
+├── sql/             # Jobs HiveQL
+│   ├── ddl/             # Bases, dimensions conformes, tables de faits (Parquet)
+│   ├── cleaning/        # Nettoyage Bronze→Silver→Gold + anonymisation
+│   ├── benchmark/       # Requêtes de performance (partition / bucket)
+│   └── profiling/       # Profiling qualité
+├── scripts/         # Outils
+│   ├── benchmark/       # Runners de benchmark + génération des graphes
+│   ├── profiling/       # Profiling décès (DuckDB rapide / awk fallback)
+│   ├── viz/             # Générateurs des dashboards (Python → HTML)
+│   └── ref/             # Référentiels (département → région)
+├── viz/             # Dashboards HTML interactifs + données agrégées
+├── docker/          # Stack Hive locale (Hive 2.3.2 + HDFS, images bde2020)
+├── CHANGELOG.md
 └── README.md
 ```
+
+> Note : les données brutes (`DATA 2024/`) ne sont pas versionnées (volumineuses, sensibles).
+
+## Stack & prérequis
+
+- **Entrepôt** : HDFS + Hive 2.3.2 + Parquet (Snappy). **Jobs** : HiveQL + Python.
+- Prérequis : Docker (stack Hive), Python 3, et `duckdb` (data-prep décès — `brew install duckdb`).
 
 ## Data Sources
 
