@@ -81,12 +81,14 @@ SELECT
   END AS age
 FROM base LEFT JOIN dr ON dr.dept = base.dept;
 
+-- ORDER BY dans chaque agrégat -> sortie DÉTERMINISTE (pas de churn git à la régénération)
 SELECT json_object(
-  'trend',   (SELECT json_group_array(json_array(annee, n))
-                FROM (SELECT annee, count(*) n FROM f GROUP BY annee ORDER BY annee)),
-  'regions', (SELECT json_group_array(region)
-                FROM (SELECT DISTINCT region FROM f ORDER BY region)),
-  'facts',   (SELECT json_group_array(json_array(annee, region, sx, age, n))
+  'trend',   (SELECT json_group_array(json_array(annee, n) ORDER BY annee)
+                FROM (SELECT annee, count(*) n FROM f GROUP BY annee)),
+  'regions', (SELECT json_group_array(region ORDER BY region)
+                FROM (SELECT DISTINCT region FROM f)),
+  'facts',   (SELECT json_group_array(json_array(annee, region, sx, age, n)
+                                      ORDER BY annee, region, sx, age)
                 FROM (SELECT annee, region, sx, age, count(*) n
                       FROM f GROUP BY annee, region, sx, age))
 );
