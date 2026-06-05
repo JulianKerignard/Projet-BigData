@@ -47,10 +47,14 @@ DATA*/
 
 # KNIME — workflows & workspace personnels
 knime/
-*.knwf
 *.knar
 workflow.knime
 .metadata/
+
+# Exceptions KNIME : workflows livrables P4 (exports portables + CSV résultats)
+!knime/*.knwf
+!knime/Deaths_Profiling/output/
+!knime/Deaths_Profiling/output/*.csv
 
 # Logs
 *.log
