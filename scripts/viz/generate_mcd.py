@@ -52,11 +52,11 @@ TABLES = {
         "consultation_key [PK]", "FK → Temps, Patient,",
         "       Professionnel, Diagnostic", "Mesures : nb_consult, duree_min"], 6.4, 9.2),
     "Fait_Hospitalisation": (FACT, "Fait_Hospitalisation", [
-        "hospitalisation_key [PK]", "FK → Temps, Patient,",
-        "       Etablissement, Diagnostic", "Mesures : nb_hospi, duree_sejour"], 6.4, 6.9),
+        "hosp_key [PK]", "FK → Temps, Patient,",
+        "       Etablissement, Diagnostic", "Mesures : nb_hospitalisation, duree_sejour"], 6.4, 6.9),
     "Fait_Satisfaction": (FACT, "Fait_Satisfaction", [
         "satisfaction_key [PK]", "FK → Temps, Etablissement,",
-        "       Geographie", "Mesure : score_satisfaction"], 6.4, 4.6),
+        "       Geographie", "Mesure : note_satisfaction"], 6.4, 4.6),
     "Fait_Deces": (FACT, "Fait_Deces", [
         "deces_key [PK]", "FK → Temps, Geographie",
         "sexe, tranche_age (dégénérés)", "Mesure : nb_deces"], 6.4, 2.3),
