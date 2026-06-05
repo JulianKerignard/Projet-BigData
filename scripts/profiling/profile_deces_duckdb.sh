@@ -21,7 +21,7 @@ duckdb -box <<SQL
 -- Une seule lecture du CSV -> table en memoire (3 colonnes utiles). Parsing
 -- quote-aware (DuckDB respecte les guillemets, contrairement a awk -F','),
 -- ignore_errors saute les lignes a nombre de champs incoherent.
-CREATE TABLE d AS
+CREATE VIEW d AS
   SELECT sexe, date_deces, code_lieu_deces
   FROM read_csv('${FILE}', header=true, sep=',', quote='"',
                 all_varchar=true, ignore_errors=true);
