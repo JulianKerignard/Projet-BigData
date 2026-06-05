@@ -24,8 +24,8 @@ QUERIES=(
   "Q1_filter_year|opt|SELECT SUM(nb_hospitalisation) FROM bench_hospitalisation_pb WHERE annee=2020"
   "Q2_by_diag|base|SELECT diag_id, SUM(nb_hospitalisation) AS nb FROM bench_hospitalisation_flat WHERE annee=2020 GROUP BY diag_id ORDER BY nb DESC LIMIT 10"
   "Q2_by_diag|opt|SELECT diag_id, SUM(nb_hospitalisation) AS nb FROM bench_hospitalisation_pb WHERE annee=2020 GROUP BY diag_id ORDER BY nb DESC LIMIT 10"
-  "Q3_join_etab|base|SELECT e.nom_etab, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms FROM bench_hospitalisation_flat f JOIN dim_etablissement e ON e.etab_id=f.etab_id WHERE f.annee=2020 GROUP BY e.nom_etab ORDER BY nb DESC LIMIT 10"
-  "Q3_join_etab|opt|SELECT e.nom_etab, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms FROM bench_hospitalisation_pb f JOIN dim_etablissement e ON e.etab_id=f.etab_id WHERE f.annee=2020 GROUP BY e.nom_etab ORDER BY nb DESC LIMIT 10"
+  "Q3_join_etab|base|SELECT f.etab_id, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms FROM bench_hospitalisation_flat f JOIN dim_etablissement e ON e.etab_id=f.etab_id WHERE f.annee=2020 GROUP BY f.etab_id ORDER BY nb DESC LIMIT 10"
+  "Q3_join_etab|opt|SELECT f.etab_id, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms FROM bench_hospitalisation_pb f JOIN dim_etablissement e ON e.etab_id=f.etab_id WHERE f.annee=2020 GROUP BY f.etab_id ORDER BY nb DESC LIMIT 10"
   "Q4_by_sexe_age|base|SELECT p.sexe, p.tranche_age, SUM(f.nb_hospitalisation) AS nb FROM bench_hospitalisation_flat f JOIN dim_patient p ON p.patient_id=f.patient_id WHERE f.annee=2020 GROUP BY p.sexe, p.tranche_age"
   "Q4_by_sexe_age|opt|SELECT p.sexe, p.tranche_age, SUM(f.nb_hospitalisation) AS nb FROM bench_hospitalisation_pb f JOIN dim_patient p ON p.patient_id=f.patient_id WHERE f.annee=2020 GROUP BY p.sexe, p.tranche_age"
 )

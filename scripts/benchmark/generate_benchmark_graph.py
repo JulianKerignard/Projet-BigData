@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-[L2] Générateur de figure de synthèse d'un benchmark (commun décès & satisfaction).
+[L2] Générateur de figure de synthèse d'un benchmark (consultation, hospitalisation, décès, satisfaction).
 
 Lit  scripts/benchmark/<bench>_results.csv  (format long : query,variant,run,duration_sec
 avec variant ∈ {base, opt}) et produit  scripts/benchmark/<bench>.png : figure 2 panneaux —
   (A) temps wall-clock baseline vs optimisée (barres = min/max),
-  (B) I/O réellement scanné (via EXPLAIN) -> le vrai gain du partition pruning.
+  (B) I/O réellement scanné (hdfs du ; EXPLAIN pour décès) -> le vrai gain du partition pruning.
 
 Usage : python3 scripts/benchmark/generate_benchmark_graph.py <consultation|hospitalisation|deces|satisfaction>
 Dépendances : matplotlib, numpy.

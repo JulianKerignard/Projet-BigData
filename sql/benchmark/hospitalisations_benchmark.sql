@@ -20,7 +20,9 @@ SET hive.enforce.bucketing            = true;
 -- -----------------------------------------------------------------------------
 -- 1. bench_hospitalisation_pb — partition (annee) + bucket 8 sur etab_id.
 --    Le bucket sur etab_id reprend la clé de bucketing de la Gold (02_faits.hql) :
---    accélère les jointures/regroupements par établissement (Q3).
+--    co-localise les séjours d'un même établissement (Q3 = regroupement par etab_id).
+--    NB : une vraie bucket-map join exigerait AUSSI la dimension bucketée (non visé ici) ;
+--    le gain mesuré Q3 reflète surtout le partition pruning, pas une bucket-map join.
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS bench_hospitalisation_pb;
 CREATE TABLE bench_hospitalisation_pb (
@@ -73,13 +75,16 @@ WHERE annee = 2020 GROUP BY diag_id ORDER BY nb DESC LIMIT 10;
 SELECT diag_id, SUM(nb_hospitalisation) AS nb FROM bench_hospitalisation_pb
 WHERE annee = 2020 GROUP BY diag_id ORDER BY nb DESC LIMIT 10;
 
--- Q3 — par établissement (jointure dim_etablissement, bucket sur etab_id) + DMS
-SELECT e.nom_etab, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms
+-- Q3 — par établissement (jointure dim_etablissement, regroupement sur etab_id = clé de bucket)
+--   Groupé sur etab_id (clé stable) et NON sur nom_etab : ce dernier est NULL pour les
+--   établissements issus des seules hospitalisations (cf. 04_chargement_dimensions.hql),
+--   ce qui replierait tous ces sites dans un unique bucket NULL.
+SELECT f.etab_id, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms
 FROM bench_hospitalisation_flat f JOIN dim_etablissement e ON e.etab_id = f.etab_id
-WHERE f.annee = 2020 GROUP BY e.nom_etab ORDER BY nb DESC LIMIT 10;
-SELECT e.nom_etab, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms
+WHERE f.annee = 2020 GROUP BY f.etab_id ORDER BY nb DESC LIMIT 10;
+SELECT f.etab_id, SUM(f.nb_hospitalisation) AS nb, AVG(f.duree_sejour) AS dms
 FROM bench_hospitalisation_pb   f JOIN dim_etablissement e ON e.etab_id = f.etab_id
-WHERE f.annee = 2020 GROUP BY e.nom_etab ORDER BY nb DESC LIMIT 10;
+WHERE f.annee = 2020 GROUP BY f.etab_id ORDER BY nb DESC LIMIT 10;
 
 -- Q4 — par sexe et tranche age (B5, jointure dim_patient)
 SELECT p.sexe, p.tranche_age, SUM(f.nb_hospitalisation) AS nb
