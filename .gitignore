@@ -45,14 +45,18 @@ DATA*/
 # Exception : gabarit de résultats benchmark (sans données sensibles)
 !scripts/benchmark/*.csv
 
-# KNIME — workflows & workspace personnels
-knime/
+# KNIME — workflows & workspace personnels (tout ignoré sauf exceptions)
+knime/*
 *.knar
 workflow.knime
 .metadata/
 
-# Exceptions KNIME : workflows livrables P4 (exports portables + CSV résultats)
+# Exceptions KNIME — livrables P4 :
+#  - exports portables .knwf
+#  - dossier output/ avec les CSV résultats
 !knime/*.knwf
+!knime/Deaths_Profiling/
+knime/Deaths_Profiling/*
 !knime/Deaths_Profiling/output/
 !knime/Deaths_Profiling/output/*.csv
 
