@@ -1,0 +1,118 @@
+{
+  "regions": [
+    [
+      "Bretagne",
+      7.6,
+      40
+    ],
+    [
+      "Nouvelle-Aquitaine",
+      7.52,
+      81
+    ],
+    [
+      "Pays de la Loire",
+      7.52,
+      39
+    ],
+    [
+      "Hauts-de-France",
+      7.46,
+      74
+    ],
+    [
+      "Bourgogne-Franche-Comté",
+      7.46,
+      34
+    ],
+    [
+      "Occitanie",
+      7.44,
+      78
+    ],
+    [
+      "Auvergne-Rhône-Alpes",
+      7.44,
+      100
+    ],
+    [
+      "Normandie",
+      7.43,
+      43
+    ],
+    [
+      "Provence-Alpes-Côte d'Azur",
+      7.42,
+      91
+    ],
+    [
+      "Grand Est",
+      7.41,
+      73
+    ],
+    [
+      "Centre-Val de Loire",
+      7.4,
+      27
+    ],
+    [
+      "Île-de-France",
+      7.19,
+      135
+    ],
+    [
+      "Corse",
+      7.08,
+      5
+    ],
+    [
+      "Guadeloupe",
+      7.03,
+      3
+    ],
+    [
+      "Océan Indien",
+      7.0,
+      7
+    ],
+    [
+      "Martinique",
+      6.87,
+      5
+    ],
+    [
+      "Guyane",
+      6.67,
+      2
+    ]
+  ],
+  "subscores": [
+    [
+      "Accueil",
+      7.32
+    ],
+    [
+      "Prise en charge infirmiers",
+      8.18
+    ],
+    [
+      "Prise en charge médecins",
+      8.09
+    ],
+    [
+      "Chambre",
+      7.35
+    ],
+    [
+      "Repas",
+      5.97
+    ],
+    [
+      "Organisation sortie",
+      6.42
+    ]
+  ],
+  "national": 7.4,
+  "diffuses": 837,
+  "total": 1150
+}

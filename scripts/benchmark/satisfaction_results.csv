@@ -1,0 +1,13 @@
+query,variant,run,duration_sec
+R1_region_2020,base,1,8.013
+R1_region_2020,base,2,8.088
+R1_region_2020,base,3,7.976
+R1_region_2020,opt,1,8.472
+R1_region_2020,opt,2,8.201
+R1_region_2020,opt,3,7.992
+R2_region_all,base,1,1.807
+R2_region_all,base,2,1.845
+R2_region_all,base,3,1.788
+R2_region_all,opt,1,1.712
+R2_region_all,opt,2,1.902
+R2_region_all,opt,3,1.875
