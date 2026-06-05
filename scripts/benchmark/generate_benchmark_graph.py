@@ -7,7 +7,7 @@ avec variant ∈ {base, opt}) et produit  scripts/benchmark/<bench>.png : figure
   (A) temps wall-clock baseline vs optimisée (barres = min/max),
   (B) I/O réellement scanné (via EXPLAIN) -> le vrai gain du partition pruning.
 
-Usage : python3 scripts/benchmark/generate_benchmark_graph.py <deces|satisfaction>
+Usage : python3 scripts/benchmark/generate_benchmark_graph.py <consultation|hospitalisation|deces|satisfaction>
 Dépendances : matplotlib, numpy.
 """
 import csv, os, sys
@@ -43,6 +43,16 @@ CONFIG = {
         "order": ["Q1_filter_year", "Q2_by_prof", "Q3_by_diag"],
         "labels": {"Q1_filter_year": "Q1\nfiltre année", "Q2_by_prof": "Q2\npar prof (B6)",
                    "Q3_by_diag": "Q3\npar diag (B2)"},
+    },
+    "hospitalisation": {
+        "csv": "hospitalisation_results.csv",
+        "out": "benchmark_hospitalisation.png",
+        "title": "Benchmark Hospitalisations (B3/B4/B5) — partition + bucketing sur Hive 2.3.2",
+        "io_base_mb": 0.204, "io_opt_mb": 0.046,  # mesuré via hdfs du (run 2026-06-05) — 2020 = 410/2479 séjours
+        "io_label": "Données scannées — Q1 (Mo, hdfs du)",
+        "order": ["Q1_filter_year", "Q2_by_diag", "Q3_join_etab", "Q4_by_sexe_age"],
+        "labels": {"Q1_filter_year": "Q1\nfiltre année (B3)", "Q2_by_diag": "Q2\npar diag (B4)",
+                   "Q3_join_etab": "Q3\npar étab.", "Q4_by_sexe_age": "Q4\nsexe × âge (B5)"},
     },
 }
 
@@ -80,7 +90,7 @@ def read_io(bench, cfg):
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in CONFIG:
-        sys.exit("Usage: generate_benchmark_graph.py <deces|satisfaction>")
+        sys.exit("Usage: generate_benchmark_graph.py <consultation|hospitalisation|deces|satisfaction>")
     bench = sys.argv[1]; cfg = CONFIG[bench]
 
     import numpy as np
