@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
-"""Extrait les agrégats Décès depuis deces.csv (1,9 Go, ~25 M lignes) en streaming.
+"""Extrait les agrégats Décès depuis deces.csv (1,9 Go, ~25 M lignes) via DuckDB.
 
-Besoin B7 : nombre de décès par région (localisation) sur 2019.
-Lecture par chunks pandas (4 colonnes utiles), dérivation département -> région,
-âge au décès, puis agrégats compacts par (année, région, sexe, tranche d'âge).
-Sortie : viz/data_deces.json (agrégats uniquement, aucune PII).
+Remplace l'ancien streaming pandas (~5 min) : DuckDB lit le CSV en multi-thread
+vectorisé (~quelques secondes) ET respecte les guillemets -> comptes corrects
+(l'ancien split naïf sous-comptait ~4 k décès 2019). On garde le mapping
+département -> région en Python (noms exacts requis par la carte choroplèthe),
+injecté dans une table DuckDB. Sortie identique : viz/data_deces.json
+(agrégats par (année, région, sexe, tranche d'âge) ; aucune PII).
+
+Pré-requis : duckdb (brew install duckdb).
 """
 import json
-import pandas as pd
+import subprocess
+import sys
 from pathlib import Path
 
 SRC = Path("DATA 2024/DECES EN FRANCE/deces.csv")
 OUT = Path("viz/data_deces.json")
 
-# département (code INSEE) -> région (découpage 2016)
-DEPT_REGION = {}
+# département (code INSEE) -> région (découpage 2016) — noms = clés de la carte
 _R = {
     "Auvergne-Rhône-Alpes": "01 03 07 15 26 38 42 43 63 69 73 74".split(),
     "Bourgogne-Franche-Comté": "21 25 39 58 70 71 89 90".split(),
@@ -32,59 +36,80 @@ _R = {
     "Guadeloupe": ["971"], "Martinique": ["972"], "Guyane": ["973"],
     "La Réunion": ["974"], "Mayotte": ["976"],
 }
-for region, depts in _R.items():
-    for d in depts:
-        DEPT_REGION[d] = region
 
 
-def dept_of(code):
-    if not isinstance(code, str) or len(code) < 2:
-        return None
-    if code[:2] in ("2A", "2B"):
-        return code[:2]
-    if code[:2] in ("97", "98"):
-        return code[:3]
-    return code[:2]
+def sql_str(s):
+    return "'" + s.replace("'", "''") + "'"
 
 
-def age_group(a):
-    if a is None or a < 0 or a > 120:
-        return "Inconnu"
-    for hi, lab in [(20, "0-19"), (40, "20-39"), (60, "40-59"),
-                    (75, "60-74"), (85, "75-84")]:
-        if a < hi:
-            return lab
-    return "85+"
+def build_sql():
+    values = ",".join(
+        f"({sql_str(d)},{sql_str(region)})"
+        for region, depts in _R.items() for d in depts)
+    src = str(SRC).replace("'", "''")
+    return f"""
+CREATE TABLE dr(dept VARCHAR, region VARCHAR);
+INSERT INTO dr VALUES {values};
+
+CREATE TABLE f AS
+WITH base AS (
+  SELECT
+    CAST(substr(date_deces, 1, 4) AS INT)            AS annee,
+    TRY_CAST(substr(date_naissance, 1, 4) AS INT)    AS an_naiss,
+    CASE WHEN sexe = '1' THEN 'H' WHEN sexe = '2' THEN 'F' ELSE '?' END AS sx,
+    CASE
+      WHEN substr(code_lieu_deces, 1, 2) IN ('2A', '2B') THEN substr(code_lieu_deces, 1, 2)
+      WHEN substr(code_lieu_deces, 1, 2) IN ('97', '98') THEN substr(code_lieu_deces, 1, 3)
+      ELSE substr(code_lieu_deces, 1, 2)
+    END AS dept
+  FROM read_csv('{src}', header=true, sep=',', quote='"',
+                all_varchar=true, ignore_errors=true)
+  WHERE regexp_matches(date_deces, '^[0-9]{{4}}')
+)
+SELECT
+  base.annee,
+  COALESCE(dr.region, 'Autre / étranger') AS region,
+  base.sx,
+  CASE
+    WHEN an_naiss IS NULL OR (annee - an_naiss) < 0 OR (annee - an_naiss) > 120 THEN 'Inconnu'
+    WHEN (annee - an_naiss) < 20 THEN '0-19'
+    WHEN (annee - an_naiss) < 40 THEN '20-39'
+    WHEN (annee - an_naiss) < 60 THEN '40-59'
+    WHEN (annee - an_naiss) < 75 THEN '60-74'
+    WHEN (annee - an_naiss) < 85 THEN '75-84'
+    ELSE '85+'
+  END AS age
+FROM base LEFT JOIN dr ON dr.dept = base.dept;
+
+SELECT json_object(
+  'trend',   (SELECT json_group_array(json_array(annee, n))
+                FROM (SELECT annee, count(*) n FROM f GROUP BY annee ORDER BY annee)),
+  'regions', (SELECT json_group_array(region)
+                FROM (SELECT DISTINCT region FROM f ORDER BY region)),
+  'facts',   (SELECT json_group_array(json_array(annee, region, sx, age, n))
+                FROM (SELECT annee, region, sx, age, count(*) n
+                      FROM f GROUP BY annee, region, sx, age))
+);
+"""
 
 
-trend = {}                # année -> nb décès
-facts = {}                # (année, région, sexe, tranche) -> nb
-cols = ["sexe", "date_naissance", "date_deces", "code_lieu_deces"]
-rows = 0
-for chunk in pd.read_csv(SRC, usecols=cols, dtype=str, chunksize=1_000_000,
-                         na_filter=False, on_bad_lines="skip"):
-    rows += len(chunk)
-    yd = chunk["date_deces"].str.slice(0, 4)
-    yn = chunk["date_naissance"].str.slice(0, 4)
-    for sexe, yds, yns, lieu in zip(chunk["sexe"], yd, yn, chunk["code_lieu_deces"]):
-        if not yds.isdigit():
-            continue
-        an = int(yds)
-        trend[an] = trend.get(an, 0) + 1
-        region = DEPT_REGION.get(dept_of(lieu), "Autre / étranger")
-        age = (an - int(yns)) if yns.isdigit() else None
-        sx = "H" if sexe == "1" else ("F" if sexe == "2" else "?")
-        key = (an, region, sx, age_group(age))
-        facts[key] = facts.get(key, 0) + 1
+def main():
+    res = subprocess.run(["duckdb", "-noheader", "-list"],
+                         input=build_sql(), capture_output=True, text=True)
+    if res.returncode != 0:
+        sys.exit("DuckDB a échoué :\n" + res.stderr)
+    out = res.stdout.strip()
+    if not out.startswith("{"):  # robustesse : isoler l'objet JSON
+        out = out[out.find("{"): out.rfind("}") + 1]
+    data = json.loads(out)  # valide le JSON
+    OUT.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
-data = {
-    "trend": sorted([[a, n] for a, n in trend.items()]),
-    "regions": sorted({r for (_, r, _, _) in facts}),
-    "facts": [[a, r, s, g, n] for (a, r, s, g), n in facts.items()],
-}
-OUT.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-print(f"Lignes lues : {rows:,}")
-print(f"Années : {data['trend'][0][0]}–{data['trend'][-1][0]}")
-y2019 = sum(n for a, r, s, g, n in data["facts"] if a == 2019)
-print(f"Décès 2019 : {y2019:,} · régions : {len(data['regions'])} · facts : {len(data['facts'])} lignes")
-print(f"Écrit : {OUT}")
+    y2019 = sum(n for a, r, s, g, n in data["facts"] if a == 2019)
+    print(f"Années : {data['trend'][0][0]}–{data['trend'][-1][0]}")
+    print(f"Décès 2019 : {y2019:,} · régions : {len(data['regions'])} "
+          f"· facts : {len(data['facts'])} lignes")
+    print(f"Écrit : {OUT}")
+
+
+if __name__ == "__main__":
+    main()
