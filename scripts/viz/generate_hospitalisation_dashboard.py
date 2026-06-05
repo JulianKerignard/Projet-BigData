@@ -6,6 +6,11 @@ Besoins : B3 (par période/année), B4 (par diagnostic CIM-10), B5 (par sexe et 
 Table de faits unique [annee, cat, sexe, age, count] -> moteur de cross-filter
 de dashboard_common. Agrégats uniquement (aucune donnée patient individuelle).
 -> viz/hospitalisation_dashboard.html
+
+Reproductible OFFLINE : si la source live (/tmp/patient.csv + Hospitalisations.csv)
+est absente, les `facts` sont rechargés depuis viz/hospitalisation_spec.json
+(cache des données extrait de l'ancien rendu). Le rendu final est identique en
+données, mais avec le nouveau style de dashboard_common.
 """
 import csv
 import json
@@ -19,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HOSP = ROOT / "DATA 2024/Hospitalisation/Hospitalisations.csv"
 PATIENT = Path("/tmp/patient.csv")
 OUT = ROOT / "viz/hospitalisation_dashboard.html"
+SPEC_CACHE = ROOT / "viz/hospitalisation_spec.json"
 
 CIM_CHAP = {
     "A": "Infectieuses & parasitaires", "B": "Infectieuses & parasitaires",
@@ -49,29 +55,54 @@ def age_group(a):
     return "85+"
 
 
-# ---- Dimension Patient : id -> (sexe, tranche d'âge) ----
-patient = {}
-with open(PATIENT, encoding="utf-8") as f:
-    for row in csv.DictReader(f):
-        sx = "F" if row["Sexe"].lower() == "female" else ("H" if row["Sexe"].lower() == "male" else "?")
-        patient[row["Id_patient"]] = (sx, age_group(row["Age"]))
+def build_facts_from_source():
+    """Reconstruit les faits depuis la source live (CSV patients + hospitalisations).
 
-# ---- Agrégation : (annee, cat, sexe, tranche) -> count ----
-agg = {}
-with open(HOSP, encoding="utf-8") as f:
-    for row in csv.DictReader(f, delimiter=";"):
-        d = row.get("Date_Entree", "")
-        parts = d.split("/")
-        if len(parts) != 3:
-            continue
-        annee = str(int(parts[2]))  # str pour cohérence des clés de dim
-        cat = CIM_CHAP.get((row.get("Code_diagnostic") or "")[:1].upper(), "Autres")
-        sx, tr = patient.get(row.get("Id_patient", ""), ("?", "Inconnu"))
-        key = (annee, cat, sx, tr)
-        agg[key] = agg.get(key, 0) + 1
+    Lève une exception si une source est absente -> bascule sur le cache.
+    """
+    # ---- Dimension Patient : id -> (sexe, tranche d'âge) ----
+    patient = {}
+    with open(PATIENT, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            sx = "F" if row["Sexe"].lower() == "female" else ("H" if row["Sexe"].lower() == "male" else "?")
+            patient[row["Id_patient"]] = (sx, age_group(row["Age"]))
 
-# facts : liste de [annee(str), cat(str), sexe(str), age(str), count(int)]
-facts = [[a, c, s, g, n] for (a, c, s, g), n in agg.items()]
+    # ---- Agrégation : (annee, cat, sexe, tranche) -> count ----
+    agg = {}
+    with open(HOSP, encoding="utf-8") as f:
+        for row in csv.DictReader(f, delimiter=";"):
+            d = row.get("Date_Entree", "")
+            parts = d.split("/")
+            if len(parts) != 3:
+                continue
+            annee = str(int(parts[2]))  # str pour cohérence des clés de dim
+            cat = CIM_CHAP.get((row.get("Code_diagnostic") or "")[:1].upper(), "Autres")
+            sx, tr = patient.get(row.get("Id_patient", ""), ("?", "Inconnu"))
+            key = (annee, cat, sx, tr)
+            agg[key] = agg.get(key, 0) + 1
+
+    # facts : liste de [annee(str), cat(str), sexe(str), age(str), count(int)]
+    return [[a, c, s, g, n] for (a, c, s, g), n in agg.items()]
+
+
+def load_facts():
+    """Renvoie (facts, origine). Source live si possible, sinon cache JSON offline."""
+    try:
+        facts = build_facts_from_source()
+        if not facts:
+            raise ValueError("source live vide")
+        return facts, "source live"
+    except (FileNotFoundError, KeyError, ValueError, OSError) as exc:
+        if not SPEC_CACHE.exists():
+            raise SystemExit(
+                f"Source live indisponible ({exc}) et cache absent : {SPEC_CACHE}. "
+                "Impossible de générer le dashboard."
+            )
+        cached = json.loads(SPEC_CACHE.read_text(encoding="utf-8"))
+        return cached["facts"], f"cache offline ({SPEC_CACHE.name})"
+
+
+facts, origin = load_facts()
 years = sorted({r[0] for r in facts})
 
 SPEC = {
@@ -86,22 +117,23 @@ SPEC = {
          "options": [["F", "Femmes"], ["H", "Hommes"]]},
     ],
     "kpis": [
-        {"id": "k_total", "label": "Hospitalisations", "calc": "total", "color": "#118dff"},
+        {"id": "k_total", "label": "Hospitalisations", "calc": "total",
+         "color": "#118dff", "icon": "\U0001FA7A", "spark": "annee"},
         {"id": "k_cat",   "label": "1er motif (diagnostic)", "calc": "topDim", "dim": "cat",
-         "noteSuffix": "des hospitalisations", "color": "#e8590c"},
+         "noteSuffix": "des hospitalisations", "color": "#e8590c", "icon": "\U0001FA7B"},
         {"id": "k_age",   "label": "Tranche d'âge n°1", "calc": "topDim", "dim": "age",
-         "noteSuffix": "des séjours", "color": "#13a10e"},
+         "noteSuffix": "des séjours", "color": "#1a9e57", "icon": "\U0001F4CA"},
         {"id": "k_fem",   "label": "Part femmes", "calc": "pctFem", "note": "des séjours",
-         "color": "#e64980"},
+         "color": "#e64980", "icon": "♀"},
         {"id": "k_year",  "label": "Année de pointe", "calc": "topDim", "dim": "annee",
-         "noteSuffix": "du volume", "color": "#7048e8"},
+         "noteSuffix": "du volume", "color": "#7048e8", "icon": "\U0001F4C5"},
     ],
     "charts": [
         {"id": "c_year", "kind": "bar", "dim": "annee",
          "label": "Hospitalisations par année",
          "tag": "Taux global d'hospitalisation × période · cliquez une année pour filtrer",
          "bcode": "B3", "clickable": True,
-         "order": years, "span": "col6"},
+         "order": years, "span": "col6", "showVal": True},
         {"id": "c_cat",  "kind": "barh", "dim": "cat",
          "label": "Par diagnostic (catégorie CIM-10)",
          "tag": "Part de chaque chapitre CIM-10 (taux) · §2.2",
@@ -143,7 +175,7 @@ total_hospi = sum(r[4] for r in facts)
 
 html = dc.page(
     title="Hospitalisation", sub="Tableau de bord décisionnel · interactif",
-    src=f"{total_hospi:,} hospitalisations ({years[0]}–{years[-1]}) · agrégats RGPD".replace(",", " "),
+    src=f"{total_hospi:,} hospitalisations ({years[0]}–{years[-1]}) · agrégats RGPD".replace(",", " "),
     active="hospitalisation",
     besoins=besoins,
     slicers=SPEC["slicers"],
@@ -160,5 +192,6 @@ print(
     f"Écrit : {OUT} ({len(html) // 1024} Ko) · "
     f"{len(facts)} lignes de faits · "
     f"{total_hospi:,} hospitalisations · "
-    f"{len(years)} années"
+    f"{len(years)} années · "
+    f"données : {origin}"
 )
