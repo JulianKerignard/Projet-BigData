@@ -3,6 +3,21 @@
 Toutes les évolutions notables du projet **CHU Big Data** (entrepôt de données décisionnel santé).
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) · versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.0] — 2026-06-06
+
+Améliorations de performance, nettoyage et cohérence (aucun changement fonctionnel de l'entrepôt).
+
+### Performance
+- Data-prep décès via **DuckDB en streaming** : pic RAM **÷4** (~1,3 Go → ~320 Mo), ~1 s, sortie **déterministe**.
+- Benchmark data-prep (DuckDB streaming vs matérialisé vs awk) : runner + graphe + CSV.
+
+### Nettoyage
+- Suppression de **~1 390 lignes de code PySpark mort** (non référencé, contredisait le choix « HiveQL sans Spark »).
+
+### Documentation
+- Livrable 2 recalé sur le repo : **disclosure des benchmarks synthétiques** (décès/satisfaction), correction de l'année B7 (2019), note `dim_patient`.
+- `CHANGELOG.md` + structure `README.md`.
+
 ## [1.0.0] — 2026-06-05
 
 Première version complète : les 3 livrables sont couverts. Stack **HDFS + Hive 2.3.2 + Parquet** (entrepôt), **Python/SQL** (jobs et outils).
@@ -33,4 +48,5 @@ Première version complète : les 3 livrables sont couverts. Stack **HDFS + Hive
 - **B1** (consultation par établissement) : non applicable — la source consultations ne porte pas d'identifiant d'établissement.
 - Entrepôt 100 % **Hive** ; DuckDB n'intervient que sur le data-prep local (hors entrepôt).
 
+[1.1.0]: https://github.com/JulianKerignard/Projet-BigData/releases/tag/v1.1.0
 [1.0.0]: https://github.com/JulianKerignard/Projet-BigData/releases/tag/v1.0.0
