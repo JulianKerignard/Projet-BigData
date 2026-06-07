@@ -1,0 +1,10 @@
+variante,run,temps_s,ram_mo
+duckdb_stream,1,1.96,264
+duckdb_stream,2,1.80,263
+duckdb_stream,3,1.80,356
+duckdb_materialise,1,1.04,1287
+duckdb_materialise,2,1.07,1249
+duckdb_materialise,3,1.10,1334
+awk_1passe,1,39.39,2
+awk_1passe,2,39.15,2
+awk_1passe,3,39.26,2
