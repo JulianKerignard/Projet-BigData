@@ -31,13 +31,13 @@ Architecture **médaillon** sur deux bases Hive :
 ### Règles techniques validées sur cluster (audit cleaning)
 
 - ⚠️ **Hive 2.x ne supporte pas les sous-requêtes scalaires en SELECT** (`SELECT (SELECT COUNT(*)…) AS x` → `Error 10249`). Pour les réconciliations de volumes, utiliser le pattern **`UNION ALL`** (corrigé dans les cleanings consultations / satisfaction / décès).
-- ✅ **Cleaning hospitalisation porté en HiveQL** : `sql/cleaning/hospitalisations_cleaning.hql` (anonymisation §2.2.A, clés conformes, Parquet) remplace la partie *cleaning* du pipeline PySpark de P2 — validé sur Hive (2 479 séjours chargés, patient pseudonymisé, jointures dim OK).
+- ✅ **Cleaning hospitalisation porté en HiveQL** : `sql/cleaning/hospitalisations_cleaning.hql` (anonymisation §2.2.A, clés conformes, Parquet) remplace la partie *cleaning* du pipeline PySpark de P2 — validé sur Hive (2 479 séjours chargés, patient pseudonymisé, jointures dim OK) — pipeline 100 % HiveQL.
 - ✅ **Chaîne Gold rendue exécutable de bout en bout** (corrections audit) :
   - `fait_consultation` est désormais **alimenté** (`consultations_cleaning.hql`, étape 4bis) — B2/B6 servis.
   - `fait_satisfaction` : INSERT corrigé (surrogate `satisfaction_key`, **`geo_id`** ajouté, `PARTITION (annee)`) ; `rejets_satisfaction` repassé en **Parquet**.
   - `dim_etablissement` (FINESS satisfaction + hospi) et `dim_diagnostic` (codes observés) **alimentées** (`04_chargement_dimensions.hql`) ; seules `dim_patient` / `dim_professionnel` restent des templates Bronze.
   - `fait_satisfaction.geo_id` aligne **B8 (satisfaction/région)** sur **B7 (décès/région)** : même axe `dim_geographie`.
-- 🟠 **Reste à traiter avec P2** : les scripts PySpark `scripts/L2_01/03/05_*.py` (profiling + chargement + benchmark) sont **superseded** par les versions HiveQL (cleaning) et `sql/ddl/02_faits.hql` (DDL). À retirer/convertir avec Chloé pour le **benchmark L2** (partition/bucket déjà déclarés dans `02_faits.hql`).
+- ✅ **Pipeline 100 % HiveQL** : profiling, chargement et benchmark assurés par `sql/cleaning/*.hql`, `sql/ddl/02_faits.hql` + `04_chargement_dimensions.hql` et `sql/benchmark/*` (partition/bucket déclarés dans `02_faits.hql`). L'ancien prototype PySpark a été retiré (cf. CHANGELOG v1.1.0) — stack « HiveQL batch, sans Spark » assumée.
 
 ---
 

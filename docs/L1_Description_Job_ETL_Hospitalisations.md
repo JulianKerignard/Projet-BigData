@@ -99,25 +99,27 @@ Alimenter la table de fait **Fait_Hospitalisation** et les dimensions associées
 
 **Input:** `Hospitalisations.csv`
 
-```python
-# PySpark / Hive SQL
-df_hosp_raw = spark.read \
-  .option("delimiter", ";") \
-  .option("header", "true") \
-  .option("encoding", "UTF-8") \
-  .option("inferSchema", "false") \
-  .csv("path/to/Hospitalisations.csv")
+> **Implémentation réelle** : le schéma de fait livré est `sql/ddl/02_faits.hql` (source unique
+> de vérité) et le job de nettoyage est `sql/cleaning/hospitalisations_cleaning.hql`. Stack
+> **HiveQL batch, sans Spark** (cf. `docs/01-architecture.md`). Les sections ci-dessous décrivent
+> la logique ETL en HiveQL ; certains enrichissements explorés (type de séjour, réadmission,
+> décès en séjour) ne sont **pas retenus** dans le fait final faute de source.
 
-# Schema mapping
-schema = StructType([
-  StructField("Num_Hospitalisation", StringType()),
-  StructField("Id_patient", IntegerType()),
-  StructField("identifiant_organisation", StringType()),
-  StructField("Code_diagnostic", StringType()),
-  StructField("Suite_diagnostic_consultation", StringType()),
-  StructField("Date_Entree", StringType()),  # Parse manually
-  StructField("Jour_Hospitalisation", IntegerType())
-])
+```sql
+-- Bronze : table externe sur le CSV brut déposé sur HDFS (séparateur ';')
+CREATE EXTERNAL TABLE staging.hospitalisation_raw (
+  num_hospitalisation           STRING,
+  id_patient                    STRING,
+  identifiant_organisation      STRING,
+  code_diagnostic               STRING,
+  suite_diagnostic_consultation STRING,
+  date_entree                   STRING,   -- JJ/MM/AAAA, parsé en aval
+  jour_hospitalisation          STRING
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ';'
+STORED AS TEXTFILE
+LOCATION '/chu/bronze/hospitalisation'
+TBLPROPERTIES ('skip.header.line.count' = '1');
 ```
 
 **Validation:**
@@ -196,19 +198,12 @@ WHERE YEAR(date_entree_parsed) BETWEEN 2015 AND 2023;
 
 #### 3.1 Pseudonymisation ID_patient
 
-```python
-# Utiliser clé maître depuis Key Management Service
-salt_per_patient = hashlib.sha256(
-  f"{id_patient}_{GLOBAL_SALT}".encode()
-).hexdigest()
-
-id_patient_pseudo = hashlib.sha256(
-  f"{id_patient}_{MASTER_KEY}_{salt_per_patient}".encode()
-).hexdigest()
-
-# Insérer dans table mapping (admin access only)
-INSERT INTO patient_mapping_secure 
-VALUES (id_patient, id_patient_pseudo, salt_per_patient, NOW());
+```sql
+-- Pseudonymisation HiveQL (même formule que les consultations -> patient_id joinable inter-faits).
+-- Secrets injectés hors dépôt : ${hivevar:MASTER_KEY}, ${hivevar:SALT_SEED}.
+sha2(concat(id_patient, '${hivevar:MASTER_KEY}',
+            sha2(concat(id_patient, '${hivevar:SALT_SEED}'), 256)), 256) AS patient_id
+-- Le mapping id_original <-> pseudo est conservé dans une table séparée à accès restreint.
 ```
 
 #### 3.2 Enrichissement diagnostics
@@ -395,28 +390,14 @@ VALUES (
 
 #### 5.5.3 Error handling
 
-```python
-try:
-  # Job ETL execution
-  spark.sql("""
-    INSERT INTO Fait_Hospitalisation ...
-  """)
-  
-  # Validation
-  count_result = spark.sql("""
-    SELECT COUNT(*) as cnt FROM Fait_Hospitalisation
-  """).collect()[0][0]
-  
-  if count_result > 0:
-    print(f"✅ SUCCESS: {count_result} rows loaded")
-  else:
-    raise Exception("No rows loaded!")
-    
-except Exception as e:
-  print(f"❌ FAILURE: {str(e)}")
-  # Log error + alert
-  insert_audit_log('ETL_Hospitalisations', 'FAILED', str(e))
-  raise
+```sql
+-- Contrôle post-chargement (doit renvoyer un compte > 0) : le job échoue sinon.
+SELECT COUNT(*) AS cnt FROM chu_entrepot.fait_hospitalisation;
+
+-- Réconciliation Bronze / Gold / rejets (cf. sql/cleaning/hospitalisations_cleaning.hql §5) :
+SELECT 'bronze' AS etape, COUNT(*) AS n FROM staging.hospitalisation_raw
+UNION ALL SELECT 'gold',   SUM(nb_hospitalisation) FROM chu_entrepot.fait_hospitalisation
+UNION ALL SELECT 'rejets', COUNT(*) FROM staging.rejets_hospitalisation;
 ```
 
 ---
@@ -445,7 +426,7 @@ except Exception as e:
 | Composant | Technologie | Raison |
 |-----------|---|---|
 | **Orchestration** | Apache Airflow | Scheduling + dependency management |
-| **Computation** | PySpark + Hive SQL | Parallélisation données massives |
+| **Traitement** | HiveQL batch (sans Spark) | SQL standard, partition/bucket natifs, suffisant à ~2 Go |
 | **Stockage** | Hive (HDFS) | Data warehouse distribué |
 | **Logging** | ELK Stack / Splunk | Centralized logs + monitoring |
 | **KMS** | AWS KMS / HashiCorp Vault | Gestion clés cryptage |
