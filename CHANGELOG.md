@@ -3,6 +3,14 @@
 Toutes les évolutions notables du projet **CHU Big Data** (entrepôt de données décisionnel santé).
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) · versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.1] — 2026-06-07
+
+Cohérence documentaire (hygiène livrable — aucun changement de code/runtime).
+
+- Purge des blocs **PySpark** résiduels de la doc ETL hospitalisation (→ HiveQL) et des références aux scripts supprimés ; stack « HiveQL sans Spark » désormais cohérente partout.
+- Suppression du **doublon** `Livrable 1 Groupe -.docx` (seule la v2 corrigée est conservée).
+- `README` aligné sur la réalité : dashboards **HTML/ECharts batch** (au lieu de « Power BI / real-time »), arbre de structure complété (`sql/dashboard/`).
+
 ## [1.1.0] — 2026-06-06
 
 Améliorations de performance, nettoyage et cohérence (aucun changement fonctionnel de l'entrepôt).
@@ -48,5 +56,6 @@ Première version complète : les 3 livrables sont couverts. Stack **HDFS + Hive
 - **B1** (consultation par établissement) : non applicable — la source consultations ne porte pas d'identifiant d'établissement.
 - Entrepôt 100 % **Hive** ; DuckDB n'intervient que sur le data-prep local (hors entrepôt).
 
+[1.1.1]: https://github.com/JulianKerignard/Projet-BigData/releases/tag/v1.1.1
 [1.1.0]: https://github.com/JulianKerignard/Projet-BigData/releases/tag/v1.1.0
 [1.0.0]: https://github.com/JulianKerignard/Projet-BigData/releases/tag/v1.0.0
