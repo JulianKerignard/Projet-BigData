@@ -10,7 +10,7 @@ This project implements a scalable, secure data warehouse for healthcare data an
 - Extract and store data from multiple healthcare sources
 - Implement secure, GDPR-compliant data warehouse
 - Enable multi-dimensional analysis for clinical and administrative users
-- Optimize performance for real-time dashboarding
+- Optimize batch query performance (partitioning + bucketing) for analytical dashboards
 
 ## Project Structure
 
@@ -20,7 +20,8 @@ This project implements a scalable, secure data warehouse for healthcare data an
 │   ├── ddl/             # Bases, dimensions conformes, tables de faits (Parquet)
 │   ├── cleaning/        # Nettoyage Bronze→Silver→Gold + anonymisation
 │   ├── benchmark/       # Requêtes de performance (partition / bucket)
-│   └── profiling/       # Profiling qualité
+│   ├── profiling/       # Profiling qualité
+│   └── dashboard/       # Requêtes analytiques des dashboards (B2/B6, prototype)
 ├── scripts/         # Outils
 │   ├── benchmark/       # Runners de benchmark + génération des graphes
 │   ├── profiling/       # Profiling décès (DuckDB rapide / awk fallback)
@@ -57,7 +58,7 @@ This project implements a scalable, secure data warehouse for healthcare data an
 
 1. **L1 - Data Referential** (Conceptual model + ETL jobs)
 2. **L2 - Physical Model & Optimization** (Scripts + performance metrics)
-3. **L3 - Results & Storytelling** (Presentation + Power BI dashboard)
+3. **L3 - Results & Storytelling** (4 dashboards HTML/ECharts interactifs, façon Power BI — reproductibles offline)
 
 ## Getting Started
 

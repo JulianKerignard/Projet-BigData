@@ -325,7 +325,7 @@ patient_mapping_table
 - [ ] Plan de test anonymisation (avant production)
 
 ### Phase 2: Développement
-- [ ] Implémenter Anonymisation Engine (PySpark / Hive SQL)
+- [ ] Implémenter Anonymisation Engine (HiveQL, sans Spark)
   - [ ] Pseudonymisation ID patients (SHA-256 + salt)
   - [ ] Généralisation diagnoses
   - [ ] Arrondissement dates
