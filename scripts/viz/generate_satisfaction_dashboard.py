@@ -118,8 +118,8 @@ besoins = [
     {"code": "Ctx", "label": "Détail par dimension de l'expérience patient", "status": "ctx"},
 ]
 slicers = [
-    {"dim": "campagne", "label": "Campagne", "type": "tiles",
-     "options": [["2020", "2020 · e-Satis 48h MCO"]]},
+    {"dim": "campagne", "label": "Année", "type": "tiles",
+     "options": [["2020", "2020"]]},
     {"dim": "tri", "label": "Trier les régions", "type": "tiles",
      "options": [["desc", "Meilleures"], ["asc", "À améliorer"]]},
 ]
@@ -132,15 +132,15 @@ kpis = [
     {"id": "k_worst", "label": "Région à améliorer", "color": "#e8590c",
      "note": "", "icon": "⚠"},
     {"id": "k_nreg", "label": "Régions évaluées", "color": "#7048e8",
-     "note": "campagne 2020", "icon": "\U0001F5FA"},
+     "note": "année 2020", "icon": "\U0001F5FA"},
     {"id": "k_diff", "label": "Établissements diffusés", "color": "#e64980",
      "note": "", "icon": "\U0001F3E5"},
 ]
 charts = [
     {"id": "c_map", "label": "Carte de la satisfaction par région", "bcode": "B8",
      "tag": "Score moyen /10 — métropole (dégradé)", "span": "col3", "tall": True},
-    {"id": "c_region", "label": "Satisfaction par région (2020)", "bcode": "B8",
-     "tag": "Score global ajusté moyen, sur 10 · repère = moyenne nationale",
+    {"id": "c_region", "label": "Top 5 / Flop 5 des régions", "bcode": "B8",
+     "tag": "5 meilleures (vert) et 5 à améliorer (orange), score /10 · repère = moyenne nationale",
      "span": "col3", "tall": True},
     {"id": "c_sub", "label": "Satisfaction par dimension", "bcode": "Ctx",
      "tag": "Score moyen national par axe de l'expérience patient", "span": "col3", "tall": True},
@@ -164,6 +164,11 @@ const score=v=>(+v).toFixed(2)+' /10';
 function render(){
   const regs = [...D.regions];                 // [region, note/10, nb_etab] triées desc
   const best = regs[0], worst = regs[regs.length-1];
+  // insight P3 « région bien dotée mais mal notée » : parmi les régions au-dessus de la
+  // médiane d'établissements diffusés, celle qui affiche la note la plus basse.
+  const nbsSorted = regs.map(d=>d[2]).sort((a,b)=>a-b);
+  const medNb = nbsSorted[Math.floor(nbsSorted.length/2)];
+  const paradox = regs.filter(d=>d[2]>=medNb).sort((a,b)=>a[1]-b[1])[0];
 
   // ---- carte choroplèthe : score moyen /10 par région (métropole) ----
   const scores=regs.map(d=>d[1]);
@@ -195,16 +200,22 @@ function render(){
 
   document.getElementById('insight').innerHTML =
     `Satisfaction nationale <b>${D.national.toFixed(2)}/10</b> en 2020 (${fmt(D.diffuses)} établissements diffusés). `
-    +`Meilleure région : <b>${best[0]}</b> (${best[1].toFixed(2)}) ; à améliorer : <b>${worst[0]}</b> (${worst[1].toFixed(2)}).`;
+    +`Meilleure région : <b>${best[0]}</b> (${best[1].toFixed(2)}) ; à améliorer : <b>${worst[0]}</b> (${worst[1].toFixed(2)}). `
+    +(paradox && paradox[0]!==worst[0]
+      ? `<b>Paradoxe :</b> <b>${paradox[0]}</b> concentre le plus d'établissements (${fmt(paradox[2])}) mais reste mal notée (<b>${paradox[1].toFixed(2)}</b>/10).`
+      : '');
 
   // #scope : rappel du périmètre actif (campagne + tri courant)
   const sc=document.getElementById('scope');
-  if(sc)sc.innerHTML='<span class="dot"></span>Campagne 2020 · '+(tri==='asc'?'tri : à améliorer':'tri : meilleures');
+  if(sc)sc.innerHTML='<span class="dot"></span>Année 2020 · '+(tri==='asc'?'tri : à améliorer':'tri : meilleures');
 
-  // ---- B8 : régions, barres horizontales (dégradé par valeur) + repère national ----
-  const ordered = tri==='asc' ? [...regs].reverse() : [...regs];
-  const forBar = [...ordered].reverse();       // ECharts y-cat de bas en haut
-  const rmin=Math.min(...forBar.map(d=>d[1])), rmax=Math.max(...forBar.map(d=>d[1]));
+  // ---- B8 : Top 5 / Flop 5 des régions (barres horizontales) + repère national ----
+  // 5 meilleures (vert) + 5 à améliorer (orange) ; le slicer "tri" bascule l'ordre d'affichage.
+  const top5 = regs.slice(0, 5), flop5 = regs.slice(-5);
+  const flopNames = new Set(flop5.map(d=>d[0]));
+  let display = [...top5, ...flop5];            // haut->bas : meilleures puis à améliorer
+  if(tri==='asc') display = [...display].reverse();
+  const forBar = [...display].reverse();        // ECharts y-cat de bas en haut
   charts.c_region.setOption({backgroundColor:'transparent',grid:{...GRID,left:'3%',right:'9%'},
     tooltip:Object.assign({},TT,{valueFormatter:v=>v.toFixed(2)+' /10'}),
     xAxis:{type:'value',max:10,...AX,...SPL},
@@ -214,11 +225,10 @@ function render(){
       label:{show:true,position:'right',color:'#605e5c',fontSize:10,fontWeight:600,
         formatter:o=>(+o.value).toFixed(2)},
       data:forBar.map(d=>({value:d[1],
-        itemStyle:{color:d[0]===ordered[0][0]?'#0b5cad':ramp(rmax===rmin?1:(d[1]-rmin)/(rmax-rmin)),
-          borderRadius:[0,5,5,0]}})),
-      markLine:{silent:true,symbol:'none',lineStyle:{color:'#e8590c',type:'dashed'},
+        itemStyle:{color:flopNames.has(d[0])?'#e8590c':'#1a9e57',borderRadius:[0,5,5,0]}})),
+      markLine:{silent:true,symbol:'none',lineStyle:{color:'#0b5cad',type:'dashed'},
         data:[{xAxis:D.national,label:{formatter:'Nat. '+D.national.toFixed(2),
-          color:'#e8590c',position:'insideEndTop'}}]}}]},true);
+          color:'#0b5cad',position:'insideEndTop'}}]}}]},true);
 
   // ---- dimensions : barres horizontales + data label de valeur ----
   const sub=[...D.subscores].sort((a,b)=>a[1]-b[1]);
@@ -260,6 +270,8 @@ function setDelta(id, diff){
 // le helper de slicer ajoute un bouton 'Tous' non pertinent ici -> on fixe l'état initial
 function initTiles(dim,val){document.querySelectorAll('#sl_'+dim+' button').forEach(b=>
   b.setAttribute('aria-pressed', String(b.dataset.v===val)));}
+// le renderer commun préfixe un bouton « Tous » (data-v=all) inutile en mono-campagne -> on le retire
+document.querySelectorAll('.tiles button[data-v="all"]').forEach(b=>b.remove());
 initTiles('tri','desc'); initTiles('campagne','2020');
 // slicer "tri" (tiles) ; "campagne" verrouillée sur 2020
 document.querySelectorAll('#sl_tri button').forEach(b=>b.onclick=()=>{
@@ -268,7 +280,7 @@ document.querySelectorAll('#sl_tri button').forEach(b=>b.onclick=()=>{
   b.setAttribute('aria-pressed','true'); tri=b.dataset.v; render();});
 // chips : pas de cross-filter ici (mono-campagne, mesure = moyenne)
 document.getElementById('chips').innerHTML =
-  '<span class="chips-empty">Campagne 2020 · score global ajusté e-Satis 48h MCO</span>';
+  '<span class="chips-empty">Année 2020 · score global ajusté e-Satis 48h MCO</span>';
 const ro=new ResizeObserver(es=>{for(const e of es){const i=echarts.getInstanceByDom(e.target);if(i)i.resize();}});
 Object.values(charts).forEach(c=>ro.observe(c.getDom()));
 window.addEventListener('resize',()=>Object.values(charts).forEach(c=>c.resize()));
@@ -286,7 +298,7 @@ html = dc.page(
     besoins=besoins, slicers=slicers, kpis=kpis, charts=charts,
     custom_script=custom, geojson=GEOJSON,
     foot="Score global ajusté converti sur 10. Établissements sous le seuil de diffusion exclus "
-         "(cf. profiling P3). Carte = métropole. Prototype — sera reconstruit dans Power BI / Tableau sur Hive.",
+         "(cf. profiling P3). Carte = métropole.",
 )
 OUT.write_text(html, encoding="utf-8")
 print(f"Écrit : {OUT} ({len(html)//1024} Ko · {len(html)} octets) · source {ORIGIN} · "
