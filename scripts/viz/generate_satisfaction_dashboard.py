@@ -202,7 +202,7 @@ function render(){
     `Satisfaction nationale <b>${D.national.toFixed(2)}/10</b> en 2020 (${fmt(D.diffuses)} établissements diffusés). `
     +`Meilleure région : <b>${best[0]}</b> (${best[1].toFixed(2)}) ; à améliorer : <b>${worst[0]}</b> (${worst[1].toFixed(2)}). `
     +(paradox && paradox[0]!==worst[0]
-      ? `<b>Paradoxe :</b> <b>${paradox[0]}</b> concentre le plus d'établissements (${fmt(paradox[2])}) mais reste mal notée (<b>${paradox[1].toFixed(2)}</b>/10).`
+      ? `<b>Paradoxe :</b> <b>${paradox[0]}</b> fait partie des régions les mieux dotées (${fmt(paradox[2])} établissements) mais reste mal notée (<b>${paradox[1].toFixed(2)}</b>/10).`
       : '');
 
   // #scope : rappel du périmètre actif (campagne + tri courant)
@@ -211,7 +211,8 @@ function render(){
 
   // ---- B8 : Top 5 / Flop 5 des régions (barres horizontales) + repère national ----
   // 5 meilleures (vert) + 5 à améliorer (orange) ; le slicer "tri" bascule l'ordre d'affichage.
-  const top5 = regs.slice(0, 5), flop5 = regs.slice(-5);
+  const k = Math.min(5, Math.floor(regs.length / 2));   // garde-fou : pas de chevauchement si < 10 régions
+  const top5 = regs.slice(0, k), flop5 = regs.slice(regs.length - k);
   const flopNames = new Set(flop5.map(d=>d[0]));
   let display = [...top5, ...flop5];            // haut->bas : meilleures puis à améliorer
   if(tri==='asc') display = [...display].reverse();
